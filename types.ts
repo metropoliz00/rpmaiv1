@@ -26,7 +26,70 @@ export interface RPMData {
   intiMengaplikasikan: string;
   intiMerefleksi: string;
   kegiatanPenutup: string;
+  kegiatanAwalDurasi: number;
+  kegiatanIntiDurasi: number;
+  kegiatanPenutupDurasi: number;
 }
+
+export const getMinutesFromAlokasi = (alokasi: string): number => {
+  if (!alokasi) return 0;
+  const jpMatch = alokasi.match(/(\d+)\s*JP/i);
+  if (jpMatch) {
+    const jpCount = parseInt(jpMatch[1], 10);
+    return jpCount * 35;
+  }
+  return 0;
+};
+
+export const getDefaultDurationsForJP = (alokasi: string) => {
+  const total = getMinutesFromAlokasi(alokasi);
+  if (total <= 0) return { awal: 0, inti: 0, penutup: 0 };
+  
+  if (total === 35) return { awal: 5, inti: 25, penutup: 5 };
+  if (total === 70) return { awal: 10, inti: 50, penutup: 10 };
+  if (total === 105) return { awal: 15, inti: 75, penutup: 15 };
+  if (total === 140) return { awal: 20, inti: 100, penutup: 20 };
+  if (total === 175) return { awal: 25, inti: 125, penutup: 25 };
+  if (total === 210) return { awal: 30, inti: 150, penutup: 30 };
+  
+  const awal = Math.round((total * 0.15) / 5) * 5 || 5;
+  const penutup = Math.round((total * 0.15) / 5) * 5 || 5;
+  const inti = total - awal - penutup;
+  return { awal, inti, penutup };
+};
+
+export const adjustDurations = (
+  changedField: 'awal' | 'inti' | 'penutup',
+  newValue: number,
+  total: number,
+  current: { awal: number; inti: number; penutup: number }
+) => {
+  let { awal, inti, penutup } = { ...current };
+  newValue = Math.max(0, Math.min(total, newValue));
+
+  if (changedField === 'awal') {
+    awal = newValue;
+    inti = total - awal - penutup;
+    if (inti < 0) {
+      inti = 0;
+      penutup = total - awal;
+    }
+  } else if (changedField === 'penutup') {
+    penutup = newValue;
+    inti = total - awal - penutup;
+    if (inti < 0) {
+      inti = 0;
+      awal = total - penutup;
+    }
+  } else if (changedField === 'inti') {
+    inti = newValue;
+    const remaining = total - inti;
+    awal = Math.round(remaining / 2);
+    penutup = remaining - awal;
+  }
+
+  return { awal, inti, penutup };
+};
 
 export interface RubrikData {
   sikap: Array<{ dpl: string; indikator: string }>;
@@ -37,8 +100,15 @@ export interface LKMData {
   judul_kegiatan: string;
   tujuan_kegiatan: string;
   alat_bahan: string;
-  langkah: string[];
-  pertanyaan: string[];
+  langkah?: string[];
+  pertanyaan?: string[];
+  petunjuk_kegiatan?: string[];
+  stimulus?: string;
+  orientasi_masalah?: string[];
+  investigasi_aktivitas?: string[];
+  analisis_berpikir_kritis?: string[];
+  produk_diskusi?: string;
+  panduan_presentasi?: string[];
 }
 
 export interface SoalConfig {
@@ -74,7 +144,10 @@ export const initialFormData: RPMData = {
   intiMemahami: '',
   intiMengaplikasikan: '',
   intiMerefleksi: '',
-  kegiatanPenutup: ''
+  kegiatanPenutup: '',
+  kegiatanAwalDurasi: 0,
+  kegiatanIntiDurasi: 0,
+  kegiatanPenutupDurasi: 0
 };
 
 export const dplOptions = [

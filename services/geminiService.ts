@@ -1,9 +1,27 @@
 import { GoogleGenAI } from "@google/genai";
 import { RPMData } from "../types";
 
-// Initialize the Gemini SDK
-// Note: Ensure process.env.API_KEY is available in your build environment
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+/**
+ * Gets a GoogleGenAI instance with the appropriate API Key.
+ * Priority:
+ * 1. userApiKey parameter
+ * 2. Key stored in localStorage
+ * 3. Default environment API key
+ */
+export const getGeminiClient = (userApiKey?: string | null): GoogleGenAI => {
+  const key = userApiKey || localStorage.getItem("user_gemini_api_key") || (typeof process !== "undefined" ? process.env.API_KEY : undefined);
+  if (!key) {
+    throw new Error("API Key Gemini tidak ditemukan. Silakan masukkan API Key Gemini Anda.");
+  }
+  return new GoogleGenAI({ 
+    apiKey: key,
+    httpOptions: {
+      headers: {
+        'User-Agent': 'aistudio-build',
+      }
+    }
+  });
+};
 
 /**
  * Cleans a string response that might contain Markdown code blocks
@@ -28,16 +46,33 @@ export const cleanJSON = (text: string | undefined): any => {
   }
 };
 
-export const generateContent = async (prompt: string): Promise<string> => {
+export const generateContent = async (prompt: string, userApiKey?: string | null): Promise<string> => {
   try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: prompt,
+    const key = userApiKey || localStorage.getItem("user_gemini_api_key") || null;
+    const response = await fetch("/api/gemini/generate", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        prompt,
+        userApiKey: key
+      })
     });
-    return response.text || "Maaf, AI tidak dapat memberikan respons saat ini.";
-  } catch (error) {
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.text || "Maaf, AI tidak dapat memberikan respons saat ini.";
+  } catch (error: any) {
     console.error("Gemini API Error:", error);
-    throw new Error("Gagal menghubungkan ke layanan AI.");
+    if (error.message && (error.message.includes("403") || error.message.includes("401") || error.message.includes("tidak valid") || error.message.includes("tidak memiliki akses"))) {
+      throw new Error("API Key Gemini tidak valid atau tidak memiliki akses. Silakan periksa kembali API Key Anda.");
+    }
+    throw new Error(error.message || "Gagal menghubungkan ke layanan AI. Pastikan API Key Anda aktif.");
   }
 };
 
@@ -66,7 +101,11 @@ export const buildPrompt = (
     case 'tujuanPembelajaran':
       specificPrompt = `
         Buat 3 Tujuan Pembelajaran yang spesifik, terukur, dan relevan dengan CP.
-        PENTING: Integrasikan penggunaan media/digital "${formData.alatDigital}" dan lingkungan belajar "${formData.lingkunganBelajar}" (jika ada) ke dalam kalimat tujuan agar terlihat operasional dan nyata.
+        Setiap tujuan pembelajaran HARUS dirumuskan mengikuti kaidah formula berikut secara ketat:
+        'Melalui [pendekatan, media, model, atau metode], murid dapat [kata kerja operasional Taksonomi Bloom atau Taksonomi SOLO] [materi pembelajaran] dengan [Benar, Sesuai, Tepat, dll disesuaikan dengan keadaan/materi]'.
+        Pilih salah satu (pendekatan, media, model, atau metode) yang paling pas dan relevan dengan materi untuk diletakkan di bagian awal kalimat.
+        Jika tujuan pembelajaran tersebut meminta murid untuk menyebutkan atau menjelaskan sesuatu, berikan perintah yang menyebutkan berapa jumlahnya secara spesifik (misalnya: menyebutkan minimal 3..., menjelaskan 2...).
+        PENTING: Integrasikan penggunaan media/digital "${formData.alatDigital}" atau lingkungan belajar "${formData.lingkunganBelajar}" (jika ada) secara alami ke dalam rumus kalimat tersebut agar terlihat operasional dan nyata.
         Format: List dengan penomoran (1. ..., 2. ...). Langsung isinya saja.
       `;
       break;
@@ -74,7 +113,7 @@ export const buildPrompt = (
       specificPrompt = `Sebutkan 3 metode/strategi pembelajaran yang spesifik untuk model ${formData.modelPembelajaran}. LANGSUNG POINNYA SAJA dipisahkan koma. Jangan ada penjelasan.`;
       break;
     case 'lintasDisiplin':
-      specificPrompt = `Sebutkan 2 mata pelajaran lain yang relevan dengan materi ini. LANGSUNG POINNYA SAJA dipisahkan koma. JANGAN berikan penjelasan.`;
+      specificPrompt = `Sebutkan 2 mata pelajaran lain yang relevan dari daftar berikut: PAIBP, Pendidikan Pancasila, Bahasa Indonesia, Matematika, IPAS, Seni Budaya, PJOK, Bahasa Inggris, Bahasa Jawa, KKA. LANGSUNG POINNYA SAJA dipisahkan koma. JANGAN berikan penjelasan.`;
       break;
     case 'kemitraan':
       specificPrompt = `Sebutkan pihak/mitra yang bisa dilibatkan (misal: Orang Tua, Ahli). LANGSUNG POINNYA SAJA dipisahkan koma. Tanpa penjelasan.`;
@@ -86,10 +125,26 @@ export const buildPrompt = (
       specificPrompt = `Sebutkan alat/media digital yang relevan. LANGSUNG POINNYA SAJA dipisahkan koma. Tanpa penjelasan.`;
       break;
     case 'kegiatanAwal':
-      specificPrompt = `Buat Kegiatan Awal (Pendahuluan). Poin pertama HARUS: "Guru mengucapkan salam, berdoa, dan mengecek kehadiran murid." dilanjutkan Apersepsi. Minimal 3 poin. Format numbering (1., 2.). Gunakan **BOLD** pada kata kunci.`;
+      specificPrompt = `
+        Buat Kegiatan Awal (Pendahuluan) yang terstruktur dan sangat rapi. Minimal 3 poin utama.
+        Poin pertama HARUS persis: "Guru mengucapkan salam, berdoa, dan mengecek kehadiran murid." dilanjutkan dengan Apersepsi.
+        Tulis langsung poin-poinnya dipisahkan oleh baris baru (newline).
+        PENTING: JANGAN tuliskan angka penomoran (1., 2.) atau tanda hubung/bullet di luar bold di awal kalimat. Tulis langsung dengan format:
+        **Apersepsi / Motivasi:** Murid...
+        Gunakan **BOLD** pada kata kunci penting di setiap poin.
+      `;
       break;
     case 'kegiatanPenutup':
-      specificPrompt = `Buat Kegiatan Penutup. Minimal 3 poin. Gunakan format numbering (1., 2.). Gunakan **BOLD** pada kata kunci utama (misal: **1. Refleksi:** Murid...).`;
+      specificPrompt = `
+        Buat Kegiatan Penutup yang terstruktur dan sangat rapi. Minimal 3 poin utama.
+        Tulis langsung poin-poinnya dipisahkan oleh baris baru (newline).
+        PENTING: JANGAN tuliskan angka penomoran (1., 2.) atau tanda hubung/bullet di luar bold di awal kalimat. Tulis langsung dengan format:
+        **Menyimpulkan Pembelajaran:** Murid bersama dengan guru membuat kesimpulan...
+        **Refleksi:** Murid melakukan refleksi terhadap jalannya proses pembelajaran...
+        **Evaluasi dan Tindak Lanjut:** Murid mengerjakan asesmen formatif...
+        
+        Gunakan **BOLD** pada kata kunci penting di setiap poin.
+      `;
       break;
     case 'kegiatanInti':
        specificPrompt = `
@@ -105,7 +160,7 @@ export const buildPrompt = (
             "mengaplikasikan": "Narasi aktivitas...",
             "merefleksi": "Narasi aktivitas..."
          }
-         Setiap value adalah string narasi deskriptif atau poin-poin (gunakan tanda - jika perlu) TANPA PENOMORAN ANGKA (seperti 1., 2. dst). 
+         Setiap value wajib terdiri dari 3-5 poin/langkah aktivitas murid yang dipecah menggunakan baris baru (newline atau \\n) dan diawali dengan penomoran angka (1., 2., dst) atau tanda hubung (-). 
          Gunakan **BOLD** pada kata kunci penting.
          Tambahkan label (Berkesadaran), (Bermakna), atau (Menggembirakan) di akhir setiap poin yang relevan.
        `;

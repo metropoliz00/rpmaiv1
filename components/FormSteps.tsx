@@ -1,7 +1,7 @@
 import React from 'react';
 import { User, BookOpen, Layout, Upload, FilePlus, List, Loader2, Sparkles } from 'lucide-react';
 import { InputGroup, SectionTitle } from './UI';
-import { RPMData, dplOptions } from '../types';
+import { RPMData, dplOptions, getDefaultDurationsForJP, adjustDurations, getMinutesFromAlokasi } from '../types';
 
 interface StepProps {
   formData: RPMData;
@@ -55,22 +55,22 @@ export const Step2Konten: React.FC<Step2Props> = ({ formData, setFormData, uploa
     <div className="animate-fade-in-up">
       <SectionTitle title="Detail Pembelajaran & Konteks" icon={BookOpen} />
       
-      <div className="mb-6 p-4 bg-indigo-50 rounded-lg border border-indigo-100">
-          <h4 className="font-bold text-indigo-800 mb-2 text-sm flex items-center gap-2"><Upload size={16}/> Tambahan Konteks AI</h4>
+      <div className="mb-6 p-5 bg-purple-50/50 rounded-xl border border-purple-100 shadow-sm">
+          <h4 className="font-bold text-purple-900 mb-3 text-sm flex items-center gap-2"><Sparkles size={16} className="text-purple-600 animate-pulse"/> Tambahan Konteks AI (Opsional)</h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">Upload File Pendukung (PDF/Doc)</label>
+                <label className="block text-xs font-semibold text-gray-600 mb-1.5">Upload File Pendukung (PDF/Doc)</label>
                 <div className="flex items-center gap-2">
-                    <label className="cursor-pointer bg-white border border-gray-300 text-gray-700 px-3 py-2 rounded-lg text-sm hover:bg-gray-50 flex items-center gap-2">
-                        <FilePlus size={16}/> Pilih File
+                    <label className="cursor-pointer bg-white border border-gray-300 text-gray-700 px-3 py-2 rounded-lg text-sm hover:bg-gray-50 flex items-center gap-2 transition-all">
+                        <FilePlus size={16} className="text-purple-600" /> Pilih File
                         <input type="file" accept=".pdf,.doc,.docx,.txt" onChange={handleFileUpload} className="hidden" />
                     </label>
-                    <span className="text-xs text-gray-500 italic">{uploadedFile ? uploadedFile.name : "Belum ada file"}</span>
+                    <span className="text-xs text-gray-500 italic truncate max-w-[150px] sm:max-w-xs">{uploadedFile ? uploadedFile.name : "Belum ada file"}</span>
                 </div>
             </div>
             <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">Paste Materi/Teks Tambahan</label>
-                <textarea className="w-full p-2 border border-gray-300 rounded-lg text-sm h-20" placeholder="Paste ringkasan materi atau instruksi khusus di sini untuk memperkuat hasil AI..." value={additionalContext} onChange={(e) => setAdditionalContext(e.target.value)}></textarea>
+                <label className="block text-xs font-semibold text-gray-600 mb-1.5">Paste Materi/Teks Tambahan</label>
+                <textarea className="w-full p-2.5 border border-gray-300 rounded-lg text-xs h-20 focus:ring-1 focus:ring-purple-500 focus:border-purple-500" placeholder="Paste ringkasan materi atau instruksi khusus di sini untuk memperkuat hasil AI..." value={additionalContext} onChange={(e) => setAdditionalContext(e.target.value)}></textarea>
             </div>
           </div>
       </div>
@@ -88,6 +88,7 @@ export const Step2Konten: React.FC<Step2Props> = ({ formData, setFormData, uploa
                 <option value="Seni">Seni</option>
                 <option value="Bahasa Inggris">Bahasa Inggris</option>
                 <option value="Bahasa Jawa">Bahasa Jawa</option>
+                <option value="KKA">KKA</option>
             </select>
         </InputGroup>
         <InputGroup label="Materi Pokok"><input type="text" className="w-full p-3 border border-gray-300 rounded-lg" value={formData.materiPokok} onChange={(e) => setFormData({...formData, materiPokok: e.target.value})} /></InputGroup>
@@ -103,7 +104,17 @@ export const Step2Konten: React.FC<Step2Props> = ({ formData, setFormData, uploa
             </select>
         </InputGroup>
         <InputGroup label="Alokasi Waktu">
-            <select className="w-full p-3 border border-gray-300 rounded-lg bg-white" value={formData.alokasiWaktu} onChange={(e) => setFormData({...formData, alokasiWaktu: e.target.value})}>
+            <select className="w-full p-3 border border-gray-300 rounded-lg bg-white" value={formData.alokasiWaktu} onChange={(e) => {
+                const val = e.target.value;
+                const defaults = getDefaultDurationsForJP(val);
+                setFormData({
+                    ...formData,
+                    alokasiWaktu: val,
+                    kegiatanAwalDurasi: defaults.awal,
+                    kegiatanIntiDurasi: defaults.inti,
+                    kegiatanPenutupDurasi: defaults.penutup
+                });
+            }}>
                 <option value="">Pilih JP</option>
                 <option value="1 JP (1 x 35 Menit)">1 JP (1 x 35 Menit)</option>
                 <option value="2 JP (2 x 35 Menit)">2 JP (2 x 35 Menit)</option>
@@ -146,6 +157,21 @@ export const Step2Konten: React.FC<Step2Props> = ({ formData, setFormData, uploa
   );
 };
 
+const metodeOptions = [
+  "Diskusi Kelompok",
+  "Tanya Jawab",
+  "Presentasi",
+  "Eksperimen/Percobaan",
+  "Demonstrasi",
+  "Simulasi/Bermain Peran",
+  "Penugasan",
+  "Ceramah Interaktif",
+  "Mind Mapping",
+  "Pengamatan Lingkungan",
+  "Kerja Kelompok",
+  "Sosiodrama"
+];
+
 export const Step3Detail: React.FC<Step3Props> = ({ formData, setFormData, generateField, loaders }) => {
     const handleDplChange = (label: string) => {
         if (formData.dpl.includes(label)) {
@@ -153,6 +179,20 @@ export const Step3Detail: React.FC<Step3Props> = ({ formData, setFormData, gener
         } else {
             setFormData({...formData, dpl: [...formData.dpl, label]});
         }
+    };
+
+    const selectedMetodeList = formData.metode
+        ? formData.metode.split(',').map(m => m.trim()).filter(m => m.length > 0)
+        : [];
+
+    const handleMetodeChange = (item: string) => {
+        let newList: string[];
+        if (selectedMetodeList.includes(item)) {
+            newList = selectedMetodeList.filter(m => m !== item);
+        } else {
+            newList = [...selectedMetodeList, item];
+        }
+        setFormData({ ...formData, metode: newList.join(', ') });
     };
 
     return (
@@ -178,9 +218,17 @@ export const Step3Detail: React.FC<Step3Props> = ({ formData, setFormData, gener
                     </select>
                 </InputGroup>
 
-                <InputGroup label="Metode Pembelajaran" onGenerateAI={() => generateField('metode')} isGenerating={loaders['metode']}>
-                    <input type="text" className="w-full p-3 border border-gray-300 rounded-lg" value={formData.metode} onChange={(e) => setFormData({...formData, metode: e.target.value})} placeholder="Contoh: Diskusi, Tanya Jawab..." />
-                </InputGroup>
+                <div className="col-span-1 md:col-span-2 border-t border-gray-100 pt-4">
+                    <label className="block text-sm font-bold text-gray-700 mb-2">Metode Pembelajaran (Pilih lebih dari 1)</label>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                        {metodeOptions.map((opt) => (
+                            <div key={opt} onClick={() => handleMetodeChange(opt)} 
+                                 className={`cursor-pointer p-2.5 rounded-lg border text-[11px] sm:text-xs font-semibold transition-all flex items-center justify-center text-center min-h-[44px] sm:min-h-0 leading-tight ${selectedMetodeList.includes(opt) ? `border-blue-500 bg-blue-50 text-blue-800 ring-2 ring-blue-200` : 'border-gray-200 hover:bg-gray-50 text-gray-600 bg-white'}`}>
+                                 {opt}
+                            </div>
+                        ))}
+                    </div>
+                </div>
             </div>
             
             {/* Media & Lingkungan */}
@@ -200,12 +248,12 @@ export const Step3Detail: React.FC<Step3Props> = ({ formData, setFormData, gener
             </div>
 
             {/* DPL Checkboxes */}
-            <div className="p-6 bg-white border border-gray-200 rounded-xl shadow-sm">
+            <div className="p-4 sm:p-6 bg-white border border-gray-200 rounded-xl shadow-sm">
                 <label className="block text-sm font-bold text-gray-700 mb-4">Dimensi Profil Lulusan (Pilih minimal 1)</label>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-4 gap-2.5">
                     {dplOptions.map((opt) => (
                         <div key={opt.label} onClick={() => handleDplChange(opt.label)} 
-                             className={`cursor-pointer p-3 rounded-lg border text-xs font-semibold transition-all ${formData.dpl.includes(opt.label) ? `border-blue-500 bg-blue-50 text-blue-800 ring-2 ring-blue-200` : 'border-gray-200 hover:bg-gray-50 text-gray-600'}`}>
+                             className={`cursor-pointer p-2.5 sm:p-3 rounded-lg border text-[11px] sm:text-xs font-semibold transition-all flex items-center justify-center text-center min-h-[44px] sm:min-h-0 leading-tight ${formData.dpl.includes(opt.label) ? `border-blue-500 bg-blue-50 text-blue-800 ring-2 ring-blue-200` : 'border-gray-200 hover:bg-gray-50 text-gray-600'}`}>
                              {opt.label}
                         </div>
                     ))}
@@ -213,7 +261,7 @@ export const Step3Detail: React.FC<Step3Props> = ({ formData, setFormData, gener
             </div>
 
             {/* Tujuan Pembelajaran Moved Here */}
-            <div className="p-6 bg-white border border-gray-200 rounded-xl shadow-sm">
+            <div className="p-4 sm:p-6 bg-white border border-gray-200 rounded-xl shadow-sm">
                 <InputGroup label="Tujuan Pembelajaran" subLabel="AI akan menggunakan data Model, Media, dan Lingkungan yang telah diisi di atas untuk membuat tujuan yang relevan." onGenerateAI={() => generateField('tujuanPembelajaran')} isGenerating={loaders['tujuanPembelajaran']}>
                     <textarea className="w-full p-3 border border-gray-300 rounded-lg h-32" value={formData.tujuanPembelajaran} onChange={(e) => setFormData({...formData, tujuanPembelajaran: e.target.value})} />
                 </InputGroup>
@@ -221,7 +269,155 @@ export const Step3Detail: React.FC<Step3Props> = ({ formData, setFormData, gener
 
             <SectionTitle title="Langkah Pembelajaran" icon={List} />
 
-            <div className="p-6 bg-white border border-gray-200 rounded-xl shadow-sm space-y-6">
+            <div className="p-4 sm:p-6 bg-white border border-gray-200 rounded-xl shadow-sm space-y-6">
+                {/* Durasi Konfigurasi */}
+                {formData.alokasiWaktu ? (() => {
+                    const totalMinutes = getMinutesFromAlokasi(formData.alokasiWaktu);
+                    const awalPct = totalMinutes > 0 ? ((formData.kegiatanAwalDurasi || 0) / totalMinutes) * 100 : 0;
+                    const intiPct = totalMinutes > 0 ? ((formData.kegiatanIntiDurasi || 0) / totalMinutes) * 100 : 0;
+                    const penutupPct = totalMinutes > 0 ? ((formData.kegiatanPenutupDurasi || 0) / totalMinutes) * 100 : 0;
+
+                    const handleDurationChange = (field: 'awal' | 'inti' | 'penutup', val: number) => {
+                        const adjusted = adjustDurations(field, val, totalMinutes, {
+                            awal: formData.kegiatanAwalDurasi || 0,
+                            inti: formData.kegiatanIntiDurasi || 0,
+                            penutup: formData.kegiatanPenutupDurasi || 0
+                        });
+                        setFormData({
+                            ...formData,
+                            kegiatanAwalDurasi: adjusted.awal,
+                            kegiatanIntiDurasi: adjusted.inti,
+                            kegiatanPenutupDurasi: adjusted.penutup
+                        });
+                    };
+
+                    return (
+                        <div className="p-4 bg-blue-50 border border-blue-100 rounded-xl space-y-4">
+                            <div className="flex justify-between items-center">
+                                <div>
+                                    <h4 className="font-bold text-blue-900 text-sm">Alokasi Waktu Pembelajaran</h4>
+                                    <p className="text-xs text-blue-700">Total: <span className="font-bold">{formData.alokasiWaktu}</span> ({totalMinutes} Menit)</p>
+                                </div>
+                                <div className="text-right">
+                                    <span className="text-xs font-semibold px-2 py-1 bg-blue-100 text-blue-800 rounded-full">
+                                        Durasi Terdistribusi
+                                    </span>
+                                </div>
+                            </div>
+
+                            {/* Visual Progress Bar */}
+                            <div className="h-3 w-full bg-blue-100 rounded-full flex overflow-hidden shadow-inner">
+                                <div style={{ width: `${awalPct}%` }} className="bg-orange-400 h-full transition-all duration-300" title={`Awal: ${formData.kegiatanAwalDurasi} Menit`} />
+                                <div style={{ width: `${intiPct}%` }} className="bg-blue-500 h-full transition-all duration-300" title={`Inti: ${formData.kegiatanIntiDurasi} Menit`} />
+                                <div style={{ width: `${penutupPct}%` }} className="bg-green-500 h-full transition-all duration-300" title={`Penutup: ${formData.kegiatanPenutupDurasi} Menit`} />
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+                                {/* Kegiatan Awal */}
+                                <div className="space-y-1">
+                                    <div className="flex justify-between text-xs font-bold text-orange-900">
+                                        <span>Awal (Pendahuluan)</span>
+                                        <span>{formData.kegiatanAwalDurasi} menit</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <button 
+                                            type="button"
+                                            onClick={() => handleDurationChange('awal', (formData.kegiatanAwalDurasi || 0) - 5)}
+                                            className="h-10 px-3 bg-white border border-gray-300 rounded-lg hover:bg-orange-50 text-orange-700 font-bold text-xs active:bg-orange-100 transition-colors shrink-0"
+                                        >
+                                            -5m
+                                        </button>
+                                        <input 
+                                            type="number"
+                                            min="0"
+                                            max={totalMinutes}
+                                            value={formData.kegiatanAwalDurasi}
+                                            onChange={(e) => handleDurationChange('awal', parseInt(e.target.value) || 0)}
+                                            className="w-full text-center h-10 border border-gray-300 rounded-lg text-sm font-semibold bg-white"
+                                        />
+                                        <button 
+                                            type="button"
+                                            onClick={() => handleDurationChange('awal', (formData.kegiatanAwalDurasi || 0) + 5)}
+                                            className="h-10 px-3 bg-white border border-gray-300 rounded-lg hover:bg-orange-50 text-orange-700 font-bold text-xs active:bg-orange-100 transition-colors shrink-0"
+                                        >
+                                            +5m
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* Kegiatan Inti */}
+                                <div className="space-y-1">
+                                    <div className="flex justify-between text-xs font-bold text-blue-900">
+                                        <span>Inti (Eksplorasi)</span>
+                                        <span>{formData.kegiatanIntiDurasi} menit</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <button 
+                                            type="button"
+                                            onClick={() => handleDurationChange('inti', (formData.kegiatanIntiDurasi || 0) - 5)}
+                                            className="h-10 px-3 bg-white border border-gray-300 rounded-lg hover:bg-blue-50 text-blue-700 font-bold text-xs active:bg-blue-100 transition-colors shrink-0"
+                                        >
+                                            -5m
+                                        </button>
+                                        <input 
+                                            type="number"
+                                            min="0"
+                                            max={totalMinutes}
+                                            value={formData.kegiatanIntiDurasi}
+                                            onChange={(e) => handleDurationChange('inti', parseInt(e.target.value) || 0)}
+                                            className="w-full text-center h-10 border border-gray-300 rounded-lg text-sm font-semibold bg-white"
+                                        />
+                                        <button 
+                                            type="button"
+                                            onClick={() => handleDurationChange('inti', (formData.kegiatanIntiDurasi || 0) + 5)}
+                                            className="h-10 px-3 bg-white border border-gray-300 rounded-lg hover:bg-blue-50 text-blue-700 font-bold text-xs active:bg-blue-100 transition-colors shrink-0"
+                                        >
+                                            +5m
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* Kegiatan Penutup */}
+                                <div className="space-y-1">
+                                    <div className="flex justify-between text-xs font-bold text-green-900">
+                                        <span>Penutup (Refleksi)</span>
+                                        <span>{formData.kegiatanPenutupDurasi} menit</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <button 
+                                            type="button"
+                                            onClick={() => handleDurationChange('penutup', (formData.kegiatanPenutupDurasi || 0) - 5)}
+                                            className="h-10 px-3 bg-white border border-gray-300 rounded-lg hover:bg-green-50 text-green-700 font-bold text-xs active:bg-green-100 transition-colors shrink-0"
+                                        >
+                                            -5m
+                                        </button>
+                                        <input 
+                                            type="number"
+                                            min="0"
+                                            max={totalMinutes}
+                                            value={formData.kegiatanPenutupDurasi}
+                                            onChange={(e) => handleDurationChange('penutup', parseInt(e.target.value) || 0)}
+                                            className="w-full text-center h-10 border border-gray-300 rounded-lg text-sm font-semibold bg-white"
+                                        />
+                                        <button 
+                                            type="button"
+                                            onClick={() => handleDurationChange('penutup', (formData.kegiatanPenutupDurasi || 0) + 5)}
+                                            className="h-10 px-3 bg-white border border-gray-300 rounded-lg hover:bg-green-50 text-green-700 font-bold text-xs active:bg-green-100 transition-colors shrink-0"
+                                        >
+                                            +5m
+                                        </button>
+                                    </div>
+                                </div>
+                             </div>
+                         </div>
+                     );
+                 })() : (
+                     <div className="p-4 bg-yellow-50 border border-yellow-100 rounded-xl text-xs text-yellow-800 flex items-center gap-2">
+                         <span>⚠️</span>
+                         <span><span className="font-bold">Alokasi Waktu belum dipilih.</span> Silakan pilih JP di langkah "Identitas & Konten" terlebih dahulu agar durasi kegiatan awal, inti, dan penutup dapat terdistribusi secara otomatis.</span>
+                     </div>
+                 )}
+
                  <InputGroup label="Kegiatan Awal" subLabel="Pendahuluan, Apersepsi, Pemantik" onGenerateAI={() => generateField('kegiatanAwal')} isGenerating={loaders['kegiatanAwal']}>
                     <textarea className="w-full p-3 border border-gray-300 rounded-lg h-40 font-mono text-sm" value={formData.kegiatanAwal} onChange={(e) => setFormData({...formData, kegiatanAwal: e.target.value})} />
                 </InputGroup>

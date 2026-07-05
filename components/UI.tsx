@@ -4,16 +4,21 @@ import { Loader2, Sparkles } from 'lucide-react';
 interface A4PageProps {
   children?: React.ReactNode;
   className?: string;
+  teacherName?: string;
 }
 
-export const A4Page = ({ children, className = '' }: A4PageProps) => (
-  <div className={`a4-page relative bg-white shadow-lg mx-auto mb-8 p-8 overflow-visible ${className}`} style={{ width: '210mm', minHeight: '297mm' }}>
-      {children}
-      <div className="absolute bottom-4 left-0 w-full text-center text-[9px] text-gray-500 font-medium z-20 print-footer print:fixed print:bottom-0">
-          @2025 Dedy Meyga Saputra, S.Pd, M.Pd | UPT SD Negeri Remen 2
-      </div>
-  </div>
-);
+export const A4Page = ({ children, className = '', teacherName }: A4PageProps) => {
+  const email = typeof window !== 'undefined' ? (localStorage.getItem("rpm_user_email") || "User") : "User";
+  const displayName = teacherName || email;
+  return (
+    <div className={`a4-page relative bg-white shadow-lg mx-auto mb-8 p-8 overflow-visible ${className}`} style={{ width: '210mm', minHeight: '297mm' }}>
+        {children}
+        <div className="absolute bottom-4 left-0 w-full text-center text-[9px] text-gray-500 font-medium z-20 print-footer print:fixed print:bottom-0">
+            RPM Pro © 2026 | {displayName}
+        </div>
+    </div>
+  );
+};
 
 type ButtonVariant = 'primary' | 'secondary' | 'accent' | 'success' | 'word' | 'outline' | 'active' | 'magic' | 'ai_small';
 type ButtonSize = 'sm' | 'md';
@@ -38,7 +43,7 @@ export const Button: React.FC<ButtonProps> = ({
   
   const sizes = {
     sm: "px-3 py-1.5 text-xs",
-    md: "px-6 py-3",
+    md: "px-4 py-2.5 sm:px-6 sm:py-3 text-sm sm:text-base",
   };
 
   const variants = {
@@ -72,7 +77,7 @@ interface InputGroupProps {
 
 export const InputGroup: React.FC<InputGroupProps> = ({ label, subLabel, children, required, onGenerateAI, isGenerating }) => (
   <div className="mb-5 group relative">
-    <div className="flex justify-between items-end mb-1">
+    <div className="flex flex-row justify-between items-start sm:items-end mb-1 gap-2 flex-wrap">
         <label className="block text-sm font-bold text-gray-700 group-hover:text-blue-600 transition-colors">
         {label} {required && <span className="text-red-500">*</span>}
         </label>
@@ -81,7 +86,7 @@ export const InputGroup: React.FC<InputGroupProps> = ({ label, subLabel, childre
                 type="button" 
                 onClick={onGenerateAI} 
                 disabled={isGenerating}
-                className="text-xs flex items-center gap-1 text-purple-600 bg-purple-50 px-2 py-1 rounded-md hover:bg-purple-100 transition-colors disabled:opacity-50"
+                className="text-xs flex items-center gap-1 text-purple-600 bg-purple-50 px-2.5 py-1.5 rounded-lg hover:bg-purple-100 transition-colors disabled:opacity-50 shrink-0"
             >
                 {isGenerating ? <Loader2 size={12} className="animate-spin"/> : <Sparkles size={12}/>}
                 AI Inspirasi

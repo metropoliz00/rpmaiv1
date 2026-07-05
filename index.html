@@ -83,6 +83,44 @@
         /* Hide scrollbars */
         ::-webkit-scrollbar { display: none; }
       }
+
+      /* Beautiful and reliable list styles to prevent overlapping (bertumpuk) */
+      ol {
+        list-style-type: decimal !important;
+        margin-left: 1.5rem !important;
+        padding-left: 0.5rem !important;
+      }
+      ul {
+        list-style-type: disc !important;
+        margin-left: 1.5rem !important;
+        padding-left: 0.5rem !important;
+      }
+      li {
+        display: list-item !important;
+        margin-bottom: 0.5rem !important;
+        line-height: 1.6 !important;
+      }
+      
+      /* Specific target styling for generated AI content sections */
+      .generated-questions-list ol, .prose ol {
+        list-style-type: decimal !important;
+        margin-left: 1.75rem !important;
+        padding-left: 0.5rem !important;
+        margin-top: 0.5rem !important;
+        margin-bottom: 1.25rem !important;
+      }
+      .generated-questions-list ul, .prose ul {
+        list-style-type: disc !important;
+        margin-left: 1.75rem !important;
+        padding-left: 0.5rem !important;
+        margin-top: 0.5rem !important;
+        margin-bottom: 1.25rem !important;
+      }
+      .generated-questions-list li, .prose li {
+        display: list-item !important;
+        margin-bottom: 0.75rem !important;
+        line-height: 1.6 !important;
+      }
     </style>
   <script type="importmap">
 {
@@ -98,9 +136,11 @@
   }
 }
 </script>
+<link rel="stylesheet" href="/index.css">
 </head>
   <body>
     <div id="root"></div>
         <script src="/index.tsx" type="module"></script>
-  </body>
+  <script type="module" src="/index.tsx"></script>
+</body>
 </html>

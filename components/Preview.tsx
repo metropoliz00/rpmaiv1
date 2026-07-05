@@ -1,5 +1,5 @@
 import React from 'react';
-import { RPMData, LKMData, RubrikData, SoalConfig, dplOptions } from '../types';
+import { RPMData, LKMData, RubrikData, SoalConfig, dplOptions, getDefaultDurationsForJP } from '../types';
 import { A4Page, Button } from './UI';
 import { Sparkles, BrainCircuit } from 'lucide-react';
 
@@ -30,6 +30,11 @@ const HeaderRPM = ({ data }: { data: RPMData }) => (
     <div className="mb-6 text-center relative font-serif">
         <div className="inline-block mb-4 pb-1 border-b-2 border-black">
             <h1 className="font-bold text-lg uppercase tracking-widest text-black">RENCANA PEMBELAJARAN MENDALAM</h1>
+            {data.modelPembelajaran && (
+                <div className="text-[11px] font-semibold text-gray-800 uppercase tracking-wider mt-1">
+                    {data.modelPembelajaran}
+                </div>
+            )}
         </div>
         <div className="text-left leading-snug">
         <table className="w-full border-none no-border-table text-inherit">
@@ -58,24 +63,40 @@ const getMuridDescription = (kelasStr: string) => {
 
 const renderListFromText = (text: string) => {
     if (!text) return "-";
-    const lines = text.split(/\n/).filter(line => line.trim().length > 0);
+    let cleanedText = text.replace(/<br\s*\/?>/gi, '\n');
+    const lines = cleanedText.split(/\n/).filter(line => line.trim().length > 0);
     if (lines.length === 0) return "-";
     
     // Always render as ordered list for consistency, stripping any AI generated numbers/bullets
     return (
-        <ol className="list-decimal ml-5 space-y-1 text-justify">
+        <ol className="list-decimal ml-5 space-y-3 text-justify">
            {lines.map((line, idx) => {
-               // Remove potential existing numbering (1., 1), etc) or bullets (- , *)
-               // Matches: starts with digit(s) followed by dot or paren, OR starts with hyphen/bullet/asterisk
-               const clean = line.replace(/^(\d+[\.\)]|[\-\•\*])\s*/, '');
+               let clean = line.trim();
+               
+               // Robustly strip any combination of leading list symbols (e.g. *, -, •, +), numbers (e.g. 1., 1)), and bold asterisks (**)
+               let lastClean = "";
+               while (clean !== lastClean) {
+                   lastClean = clean;
+                   clean = clean.replace(/^[\*\-\•\+\s]+/, ''); // strip bullets and stars at start
+                   clean = clean.replace(/^\d+[\.\)\s]+/, '');   // strip leading numbers with dots/parens
+                   clean = clean.replace(/^\*\*+/, '');          // strip starting bold markers if separate
+               }
+               
+               // Normalize bold titles (e.g. if we have "Title:**" instead of "**Title:**")
+               if (clean.includes(':**') && !clean.startsWith('**')) {
+                   clean = '**' + clean;
+               }
+
                const parts = clean.split(/(\*\*.*?\*\*)/g);
                return (
-                   <li key={idx} className="pl-1">
+                   <li key={idx} className="pl-1 leading-relaxed text-black">
                         {parts.map((part, j) => {
                             if (part.startsWith('**') && part.endsWith('**')) {
-                                return <strong key={j}>{part.slice(2, -2)}</strong>;
+                                return <strong key={j} className="text-gray-900 font-bold">{part.slice(2, -2)}</strong>;
                             }
-                            return <span key={j}>{part}</span>;
+                            // Replace any stray remaining single asterisks or double asterisks in non-bold parts
+                            const cleanPart = part.replace(/\*\*+/g, '').replace(/\*/g, '');
+                            return <span key={j}>{cleanPart}</span>;
                         })}
                    </li>
                )
@@ -115,6 +136,22 @@ export const RPMDocument: React.FC<PreviewProps> = ({
     onGenerateMateri, onGenerateLKM, onGenerateRubrik, onGenerateSoal, isGeneratingSoal
 }) => {
 
+    const getAwalMinutes = () => {
+        if (formData.kegiatanAwalDurasi) return formData.kegiatanAwalDurasi;
+        const defaults = getDefaultDurationsForJP(formData.alokasiWaktu);
+        return defaults.awal || 10;
+    };
+    const getIntiMinutes = () => {
+        if (formData.kegiatanIntiDurasi) return formData.kegiatanIntiDurasi;
+        const defaults = getDefaultDurationsForJP(formData.alokasiWaktu);
+        return defaults.inti || 50;
+    };
+    const getPenutupMinutes = () => {
+        if (formData.kegiatanPenutupDurasi) return formData.kegiatanPenutupDurasi;
+        const defaults = getDefaultDurationsForJP(formData.alokasiWaktu);
+        return defaults.penutup || 10;
+    };
+
     const DPLSection = () => {
         const rows = [];
         for (let i = 0; i < dplOptions.length; i += 4) {
@@ -144,28 +181,30 @@ export const RPMDocument: React.FC<PreviewProps> = ({
     };
 
     return (
-        <div id="rpm-document" className="print:w-full">
+        <div className="preview-container">
+            <div id="rpm-document" className="print:w-full">
             {activeDocs.rpm && (
-            <A4Page className="rpm-main font-serif text-[11px] leading-snug">
+            <A4Page teacherName={formData.namaPenyusun} className="rpm-main font-serif text-[11px] leading-snug">
                 <HeaderRPM data={formData} />
                 
-                <div className="mb-6 break-inside-avoid">
-                    <table className="w-full border-collapse shadow-lg mb-6 text-inherit">
+                <div className="mb-6">
+                    <table className="w-full border-collapse border border-black shadow-lg text-inherit">
                         <tbody>
-                            <tr>
+                            {/* SECTION 1: IDENTIFIKASI */}
+                            <tr className="break-inside-avoid">
                                 <HeaderCol title="IDENTIFIKASI" />
-                                <td className="p-0 align-top border border-gray-300 bg-white">
+                                <td className="p-0 align-top border border-black bg-white">
                                     <table className="w-full border-collapse text-inherit">
                                         <tbody>
-                                            <tr className="border-b border-gray-200">
-                                                <td className="p-2 w-32 font-bold bg-gray-50 text-gray-700 shadow-inner border border-black">Murid</td>
-                                                <td className="p-2 text-justify border border-black">{getMuridDescription(formData.kelas)}</td>
+                                            <tr className="border-b border-black">
+                                                <td className="p-2 w-32 font-bold bg-gray-50 text-gray-700 shadow-inner border-r border-black">Murid</td>
+                                                <td className="p-2 text-justify">{getMuridDescription(formData.kelas)}</td>
                                             </tr>
-                                            <tr className="border-b border-gray-200">
-                                                <td className="p-1.5 font-bold bg-blue-50 text-blue-900 text-center uppercase text-[10px] tracking-wider border border-black" colSpan={2}>Dimensi Profil Lulusan</td>
+                                            <tr className="border-b border-black">
+                                                <td className="p-1.5 font-bold bg-blue-50 text-blue-900 text-center uppercase text-[10px] tracking-wider" colSpan={2}>Dimensi Profil Lulusan</td>
                                             </tr>
                                             <tr>
-                                                <td className="p-3 bg-white border border-black" colSpan={2}>
+                                                <td className="p-3 bg-white" colSpan={2}>
                                                     <DPLSection />
                                                 </td>
                                             </tr>
@@ -174,29 +213,30 @@ export const RPMDocument: React.FC<PreviewProps> = ({
                                 </td>
                             </tr>
                             
-                            <tr>
+                            {/* SECTION 2: DESIGN PEMBELAJARAN */}
+                            <tr className="break-inside-avoid">
                                 <HeaderCol title="DESIGN PEMBELAJARAN" />
-                                <td className="p-0 align-top border border-gray-300 bg-white">
+                                <td className="p-0 align-top border border-black bg-white">
                                     <table className="w-full border-collapse text-inherit">
                                         <tbody>
-                                            <tr className="border-b border-gray-200">
-                                                <td className="p-2 w-32 font-semibold bg-gray-50 text-gray-700 shadow-inner align-top border border-black">Capaian Pembelajaran</td>
-                                                <td className="p-2 text-justify align-top border border-black">{formData.capaianPembelajaran}</td>
+                                            <tr className="border-b border-black">
+                                                <td className="p-2 w-32 font-semibold bg-gray-50 text-gray-700 shadow-inner align-top border-r border-black">Capaian Pembelajaran</td>
+                                                <td className="p-2 text-justify align-top">{formData.capaianPembelajaran}</td>
                                             </tr>
-                                            <tr className="border-b border-gray-200">
-                                                <td className="p-2 font-semibold bg-gray-50 text-gray-700 shadow-inner align-top border border-black">Tujuan Pembelajaran</td>
-                                                <td className="p-2 align-top border border-black">{renderListFromText(formData.tujuanPembelajaran)}</td>
+                                            <tr className="border-b border-black">
+                                                <td className="p-2 font-semibold bg-gray-50 text-gray-700 shadow-inner align-top border-r border-black">Tujuan Pembelajaran</td>
+                                                <td className="p-2 align-top">{renderListFromText(formData.tujuanPembelajaran)}</td>
                                             </tr>
-                                            <tr className="border-b border-gray-200">
-                                                <td className="p-2 font-semibold bg-gray-50 text-gray-700 shadow-inner align-top border border-black">Praktik Pedagogis</td>
-                                                <td className="p-2 align-top border border-black">
-                                                    <div className="font-bold text-blue-800 mb-1">{formData.modelPembelajaran}</div>
-                                                    <div className="text-gray-600 italic">{formData.metode}</div>
+                                            <tr className="border-b border-black">
+                                                <td className="p-2 font-semibold bg-gray-50 text-gray-700 shadow-inner align-top border-r border-black">Praktik Pedagogis</td>
+                                                <td className="p-2 align-top">
+                                                    <div className="mb-1 text-gray-800"><strong className="text-blue-900 font-bold">Model pembelajaran:</strong> {formData.modelPembelajaran || "-"}</div>
+                                                    <div className="text-gray-800"><strong className="text-blue-900 font-bold">Metode pembelajaran:</strong> {formData.metode || "-"}</div>
                                                 </td>
                                             </tr>
-                                            <tr className="border-b border-gray-200">
-                                                <td className="p-2 font-semibold bg-gray-50 text-gray-700 shadow-inner align-top border border-black">Lintas Disiplin, Mitra, Digital & Lingkungan</td>
-                                                <td className="p-2 align-top border border-black">
+                                            <tr>
+                                                <td className="p-2 font-semibold bg-gray-50 text-gray-700 shadow-inner align-top border-r border-black">Lintas Disiplin, Mitra, Digital & Lingkungan</td>
+                                                <td className="p-2 align-top">
                                                     <div className="mb-1"><strong>Lintas Disiplin:</strong> {formData.lintasDisiplin}</div>
                                                     <div className="mb-1"><strong>Mitra:</strong> {formData.kemitraan}</div>
                                                     <div className="mb-1"><strong>Digital:</strong> {formData.alatDigital}</div>
@@ -207,77 +247,67 @@ export const RPMDocument: React.FC<PreviewProps> = ({
                                     </table>
                                 </td>
                             </tr>
-                        </tbody>
-                    </table>
-                </div>
 
-                <div className="mb-6 break-inside-avoid">
-                    <table className="w-full border-collapse shadow-lg mb-6 text-inherit">
-                        <tbody>
+                            {/* SECTION 3: PENGALAMAN PEMBELAJARAN */}
                             <tr>
                                 <HeaderCol title="PENGALAMAN PEMBELAJARAN" />
-                                <td className="p-0 align-top border border-gray-300 bg-white">
-                                    <div className="bg-orange-100 p-2 font-bold text-orange-900 pl-4 border-b border-orange-200 shadow-inner border border-black">Kegiatan Awal (Kesan, Bermakna)</div>
-                                    <div className="border-b border-gray-200 p-2 bg-white border border-black">
+                                <td className="p-0 align-top border border-black bg-white">
+                                    <div className="bg-orange-100 p-2 font-bold text-orange-900 pl-4 border-b border-black shadow-inner">Kegiatan Awal (Kesan, Bermakna) - {getAwalMinutes()} Menit</div>
+                                    <div className="border-b border-black p-2 bg-white">
                                         {renderListFromText(formData.kegiatanAwal)}
                                     </div>
 
-                                    <div className="bg-orange-100 p-2 font-bold text-orange-900 pl-4 border-b border-orange-200 shadow-inner border border-black">Kegiatan Inti (Berkesadaran, Bermakna, Menggembirakan)</div>
+                                    <div className="bg-orange-100 p-2 font-bold text-orange-900 pl-4 border-b border-black shadow-inner">Kegiatan Inti (Berkesadaran, Bermakna, Menggembirakan) - {getIntiMinutes()} Menit</div>
                                     <table className="w-full border-collapse text-inherit">
                                         <tbody>
-                                            <tr className="border-b border-gray-100">
-                                                <td className="p-2 w-[35%] align-top bg-gray-50 border-r border-gray-200 border border-black">
+                                            <tr className="border-b border-black break-inside-avoid">
+                                                <td className="p-2 w-[35%] align-top bg-gray-50 border-r border-black">
                                                     <strong className="text-blue-900">A. Memahami</strong><br/>
                                                     <span className="text-[10px] italic text-gray-500">(Berkesadaran, Bermakna)</span>
                                                 </td>
-                                                <td className="p-2 align-top text-justify border border-black">{renderParagraphs(formData.intiMemahami)}</td>
+                                                <td className="p-2 align-top text-justify">{renderListFromText(formData.intiMemahami)}</td>
                                             </tr>
-                                            <tr className="border-b border-gray-100">
-                                                <td className="p-2 align-top bg-gray-50 border-r border-gray-200 border border-black">
+                                            <tr className="border-b border-black break-inside-avoid">
+                                                <td className="p-2 align-top bg-gray-50 border-r border-black">
                                                     <strong className="text-blue-900">B. Mengaplikasikan</strong><br/>
                                                     <span className="text-[10px] italic text-gray-500">(Bermakna, Mengembirakan)</span>
                                                 </td>
-                                                <td className="p-2 align-top text-justify border border-black">{renderParagraphs(formData.intiMengaplikasikan)}</td>
+                                                <td className="p-2 align-top text-justify">{renderListFromText(formData.intiMengaplikasikan)}</td>
                                             </tr>
-                                            <tr>
-                                                <td className="p-2 align-top bg-gray-50 border-r border-gray-200 border border-black">
+                                            <tr className="break-inside-avoid">
+                                                <td className="p-2 align-top bg-gray-50 border-r border-black">
                                                     <strong className="text-blue-900">C. Merefleksi</strong><br/>
                                                     <span className="text-[10px] italic text-gray-500">(Berkesadaran, Bermakna)</span>
                                                 </td>
-                                                <td className="p-2 align-top text-justify border border-black">{renderParagraphs(formData.intiMerefleksi)}</td>
+                                                <td className="p-2 align-top text-justify">{renderListFromText(formData.intiMerefleksi)}</td>
                                             </tr>
                                         </tbody>
                                     </table>
 
-                                    <div className="border-t border-b border-orange-200 bg-orange-100 p-2 font-bold text-orange-900 pl-4 shadow-inner border border-black">Kegiatan Penutup (Berkesadaran)</div>
-                                    <div className="p-2 bg-white border border-black">
+                                    <div className="border-t border-b border-black bg-orange-100 p-2 font-bold text-orange-900 pl-4 shadow-inner">Kegiatan Penutup (Berkesadaran) - {getPenutupMinutes()} Menit</div>
+                                    <div className="p-2 bg-white">
                                         {renderListFromText(formData.kegiatanPenutup)}
                                     </div>
                                 </td>
                             </tr>
-                        </tbody>
-                    </table>
-                </div>
 
-                <div className="mb-6 break-inside-avoid">
-                    <table className="w-full border-collapse shadow-lg mb-6 text-inherit">
-                        <tbody>
-                            <tr>
+                            {/* SECTION 4: ASESMEN PEMBELAJARAN */}
+                            <tr className="break-inside-avoid">
                                 <HeaderCol title="ASESMEN PEMBELAJARAN" />
-                                <td className="p-0 align-top border border-gray-300 bg-white">
+                                <td className="p-0 align-top border border-black bg-white">
                                     <table className="w-full border-collapse h-full text-inherit">
                                         <tbody>
-                                            <tr className="border-b border-gray-200">
-                                                <td className="p-2 w-32 font-semibold bg-gray-50 text-gray-700 shadow-inner border border-black">Asesmen Pada Awal</td>
-                                                <td className="p-2 border border-black">Pertanyaan pemantik lisan, Kuis singkat (Diagnostik Kognitif)</td>
+                                            <tr className="border-b border-black">
+                                                <td className="p-2 w-32 font-semibold bg-gray-50 text-gray-700 shadow-inner border-r border-black">Asesmen Pada Awal</td>
+                                                <td className="p-2">Pertanyaan pemantik lisan, Kuis singkat (Diagnostik Kognitif)</td>
                                             </tr>
-                                            <tr className="border-b border-gray-200">
-                                                <td className="p-2 font-semibold bg-gray-50 text-gray-700 shadow-inner border border-black">Asesmen Pada Proses</td>
-                                                <td className="p-2 border border-black">Observasi Profil Lulusan, Kinerja Kelompok (LKM), Penilaian Antar Teman</td>
+                                            <tr className="border-b border-black">
+                                                <td className="p-2 font-semibold bg-gray-50 text-gray-700 shadow-inner border-r border-black">Asesmen Pada Proses</td>
+                                                <td className="p-2">Observasi Profil Lulusan, Kinerja Kelompok (LKM), Penilaian Antar Teman</td>
                                             </tr>
                                             <tr>
-                                                <td className="p-2 font-semibold bg-gray-50 text-gray-700 shadow-inner border border-black">Asesmen Pada Akhir</td>
-                                                <td className="p-2 border border-black">Tes Sumatif (Soal Evaluasi), Produk/Karya Murid (Rubrik)</td>
+                                                <td className="p-2 font-semibold bg-gray-50 text-gray-700 shadow-inner border-r border-black">Asesmen Pada Akhir</td>
+                                                <td className="p-2">Tes Sumatif (Soal Evaluasi), Produk/Karya Murid (Rubrik)</td>
                                             </tr>
                                         </tbody>
                                     </table>
@@ -285,20 +315,22 @@ export const RPMDocument: React.FC<PreviewProps> = ({
                             </tr>
                         </tbody>
                     </table>
+                </div>
 
-                    <table className="w-full mt-12 border-none signature-table text-inherit">
+                <div className="break-inside-avoid mt-8">
+                    <table className="w-full border-none signature-table text-inherit">
                         <tbody>
                             <tr>
                                 <td className="w-1/2 text-center border-none align-top" style={{border: 'none'}}>
                                     <p>Mengetahui,<br/>Kepala {formData.namaSekolah}</p>
-                                    <div className="h-24"></div>
-                                    <p className="font-bold underline text-black">{formData.namaKepalaSekolah}</p>
+                                    <div className="h-20"></div>
+                                    <p className="font-bold text-black">{formData.namaKepalaSekolah}</p>
                                     <p>NIP. {formData.nipKepalaSekolah}</p>
                                 </td>
                                 <td className="w-1/2 text-center border-none align-top" style={{border: 'none'}}>
                                     <p>{formData.tempat || "......."}, {formData.tanggal ? new Date(formData.tanggal).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : "......."}<br/>Guru Kelas {formData.kelas}</p>
-                                    <div className="h-24"></div>
-                                    <p className="font-bold underline text-black">{formData.namaPenyusun}</p>
+                                    <div className="h-20"></div>
+                                    <p className="font-bold text-black">{formData.namaPenyusun}</p>
                                     <p>NIP. {formData.nipPenyusun}</p>
                                 </td>
                             </tr>
@@ -309,8 +341,8 @@ export const RPMDocument: React.FC<PreviewProps> = ({
             )}
 
             {activeDocs.paparan && (
-                <A4Page className="print-break-before font-serif text-[11px] leading-snug">
-                    <div className="text-center font-bold text-lg mb-4 border-b-2 border-blue-800 pb-2 text-blue-900 font-sans">LAMPIRAN: PAPARAN MATERI</div>
+                <A4Page teacherName={formData.namaPenyusun} className="font-serif text-[11px] leading-snug">
+                    <div className="text-center font-bold text-lg mb-4 border-b-2 border-blue-800 pb-2 text-blue-900 font-sans uppercase">LAMPIRAN I: PAPARAN MATERI</div>
                     <div className="print:hidden mb-4 text-center">
                         <Button onClick={onGenerateMateri} variant="magic" isLoading={loaders['materi']} icon={Sparkles}>Generate Materi Ajar</Button>
                     </div>
@@ -329,93 +361,216 @@ export const RPMDocument: React.FC<PreviewProps> = ({
             )}
 
             {activeDocs.lkm && (
-                <A4Page className="print-break-before font-serif text-[11px] leading-snug">
+                <A4Page teacherName={formData.namaPenyusun} className="font-serif text-[11px] leading-snug">
                     <div className="print:hidden mb-4 text-center">
                         <Button onClick={onGenerateLKM} variant="magic" isLoading={loaders['lkm']} icon={Sparkles}>Generate LKM dengan AI</Button>
                     </div>
 
                     <div className="border-2 border-black p-1 mb-4">
                         <div className="border border-black p-4">
-                            <div className="text-center font-bold text-lg mb-1 uppercase">LEMBAR KERJA MURID (LKM)</div>
-                            <div className="text-center font-bold text-base mb-4 uppercase text-gray-600">{generatedLKMContent?.judul_kegiatan || formData.materiPokok}</div>
+                            <div className="text-center font-bold text-base mb-1 uppercase">LAMPIRAN II: LEMBAR KERJA MURID (LKM) KELOMPOK</div>
+                            <div className="text-center font-bold text-sm mb-4 uppercase text-gray-600">
+                                {generatedLKMContent?.judul_kegiatan || `Eksplorasi ${formData.materiPokok}`}
+                            </div>
                             
-                            <table className="w-full border-collapse text-inherit">
-                                <tbody>
-                                    <tr>
-                                        <td className="border border-black p-1 bg-gray-100 font-bold w-32">Mata Pelajaran</td>
-                                        <td className="border border-black p-1">{formData.mataPelajaran}</td>
-                                        <td className="border border-black p-1 bg-gray-100 font-bold w-24">Kelas/Sem</td>
-                                        <td className="border border-black p-1">{formData.kelas} / {formData.semester}</td>
-                                    </tr>
-                                    <tr>
-                                        <td className="border border-black p-1 bg-gray-100 font-bold">Materi Pokok</td>
-                                        <td className="border border-black p-1">{formData.materiPokok}</td>
-                                        <td className="border border-black p-1 bg-gray-100 font-bold">Waktu</td>
-                                        <td className="border border-black p-1">{formData.alokasiWaktu}</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                            
-                            <div className="mt-2 border border-black text-inherit">
-                                <div className="bg-gray-100 p-1 font-bold border-b border-black">Anggota Kelompok:</div>
-                                <div className="p-2 grid grid-cols-2 gap-x-4 gap-y-2">
-                                    <div>1. ........................................</div>
-                                    <div>2. ........................................</div>
-                                    <div>3. ........................................</div>
-                                    <div>4. ........................................</div>
-                                    <div>5. ........................................</div>
-                                    <div>6. ........................................</div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <table className="w-full border-collapse text-inherit text-[10px]">
+                                    <tbody>
+                                        <tr>
+                                            <td className="border border-black p-1 bg-gray-100 font-bold w-32">Mata Pelajaran</td>
+                                            <td className="border border-black p-1">{formData.mataPelajaran || "..................."}</td>
+                                        </tr>
+                                        <tr>
+                                            <td className="border border-black p-1 bg-gray-100 font-bold">Kelas/Fase</td>
+                                            <td className="border border-black p-1">{formData.kelas || "..................."} / {formData.semester || "..................."}</td>
+                                        </tr>
+                                        <tr>
+                                            <td className="border border-black p-1 bg-gray-100 font-bold">Materi Pembelajaran</td>
+                                            <td className="border border-black p-1">{formData.materiPokok || "..................."}</td>
+                                        </tr>
+                                        <tr>
+                                            <td className="border border-black p-1 bg-gray-100 font-bold">Model Pembelajaran</td>
+                                            <td className="border border-black p-1 font-bold">{formData.modelPembelajaran || "..................."}</td>
+                                        </tr>
+                                        <tr>
+                                            <td className="border border-black p-1 bg-gray-100 font-bold">Alokasi Waktu</td>
+                                            <td className="border border-black p-1">{formData.alokasiWaktu || "..................."}</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+
+                                <div className="border border-black text-inherit p-2 flex flex-col justify-between text-[10px]">
+                                    <div>
+                                        <div className="font-bold border-b border-black pb-1 mb-1 flex justify-between">
+                                            <span>Nama Kelompok: ................................</span>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-x-2 gap-y-1">
+                                            <div>1. ........................................</div>
+                                            <div>2. ........................................</div>
+                                            <div>3. ........................................</div>
+                                            <div>4. ........................................</div>
+                                            <div>5. ........................................</div>
+                                            <div>6. ........................................</div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
 
                     <div className="text-inherit space-y-4">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="border border-black p-3 relative">
-                                <div className="absolute -top-2 left-2 bg-white px-1 font-bold text-blue-800">A. Tujuan Kegiatan</div>
-                                <p>{generatedLKMContent?.tujuan_kegiatan || "..."}</p>
-                            </div>
-                            <div className="border border-black p-3 relative">
-                                <div className="absolute -top-2 left-2 bg-white px-1 font-bold text-blue-800">B. Alat & Bahan</div>
-                                <p>{generatedLKMContent?.alat_bahan || "..."}</p>
+                        {/* B. Petunjuk Kegiatan */}
+                        <div className="border border-black p-3 relative">
+                            <div className="absolute -top-2 left-2 bg-white px-1 font-bold text-blue-900">B. Petunjuk Kegiatan</div>
+                            <ul className="list-disc ml-5 space-y-1 mt-1">
+                                {generatedLKMContent?.petunjuk_kegiatan ? (
+                                    generatedLKMContent.petunjuk_kegiatan.map((item, i) => <li key={i}>{item}</li>)
+                                ) : (
+                                    <>
+                                        <li>Bentuklah kelompok yang terdiri atas 4-6 murid.</li>
+                                        <li>Pahamilah stimulus permasalahan yang disajikan di bawah ini dengan saksama.</li>
+                                        <li>Diskusikan setiap orientasi masalah, aktivitas investigasi, dan pertanyaan analisis secara kolaboratif.</li>
+                                        <li>Gunakan buku pelajaran, materi ajar, atau sumber digital tepercaya sebagai referensi tambahan.</li>
+                                    </>
+                                )}
+                            </ul>
+                        </div>
+
+                        {/* C. Stimulus Permasalahan */}
+                        <div className="border border-black p-3 relative bg-gray-50/50">
+                            <div className="absolute -top-2 left-2 bg-white px-1 font-bold text-blue-900">C. Stimulus Permasalahan</div>
+                            <div className="mt-1 text-justify italic leading-relaxed text-[11px]">
+                                {generatedLKMContent?.stimulus || (
+                                    <span className="text-gray-400">Silakan klik tombol "Generate LKM dengan AI" untuk memunculkan stimulus pembelajaran yang relevan dan kontekstual.</span>
+                                )}
                             </div>
                         </div>
 
-                        <div className="border border-black p-4 relative">
-                            <div className="absolute -top-2 left-2 bg-white px-1 font-bold text-blue-800">C. Langkah Kerja</div>
-                            {generatedLKMContent?.langkah ? (
-                                <ol className="list-decimal ml-5 space-y-1">
-                                    {generatedLKMContent.langkah.map((l, i) => <li key={i}>{l}</li>)}
-                                </ol>
-                            ) : <p className="italic text-gray-400">Belum ada data langkah kerja.</p>}
-                        </div>
-
-                        <div className="border border-black p-4 relative">
-                            <div className="absolute -top-2 left-2 bg-white px-1 font-bold text-blue-800">D. Hasil Diskusi</div>
-                            {generatedLKMContent?.pertanyaan ? (
-                                <div className="space-y-4 mt-2">
-                                    {generatedLKMContent.pertanyaan.map((q, i) => (
+                        {/* D. Orientasi Masalah */}
+                        <div className="border border-black p-3 relative">
+                            <div className="absolute -top-2 left-2 bg-white px-1 font-bold text-blue-900">D. Orientasi Masalah</div>
+                            <div className="space-y-3 mt-1">
+                                {generatedLKMContent?.orientasi_masalah ? (
+                                    generatedLKMContent.orientasi_masalah.map((item, i) => (
                                         <div key={i} className="break-inside-avoid">
-                                            <p className="font-bold mb-1">{i+1}. {q}</p>
-                                            <div className="w-full border-b border-black border-dotted h-6"></div>
-                                            <div className="w-full border-b border-black border-dotted h-6"></div>
-                                            <div className="w-full border-b border-black border-dotted h-6"></div>
+                                            <p className="font-bold mb-1">{i+1}. {item}</p>
+                                            <div className="w-full border-b border-gray-400 border-dotted h-5"></div>
+                                            <div className="w-full border-b border-gray-400 border-dotted h-5"></div>
                                         </div>
-                                    ))}
+                                    ))
+                                ) : (
+                                    <p className="italic text-gray-400">Belum ada pertanyaan orientasi masalah. Generate LKM terlebih dahulu.</p>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* E. Kegiatan Investigasi Kelompok */}
+                        <div className="border border-black p-3 relative">
+                            <div className="absolute -top-2 left-2 bg-white px-1 font-bold text-blue-900">
+                                E. Kegiatan Investigasi Kelompok ({formData.modelPembelajaran})
+                            </div>
+                            <div className="space-y-3 mt-1">
+                                {generatedLKMContent?.investigasi_aktivitas ? (
+                                    generatedLKMContent.investigasi_aktivitas.map((item, i) => (
+                                        <div key={i} className="break-inside-avoid">
+                                            <p className="font-semibold mb-1">Aktivitas {i+1}: {item}</p>
+                                            <div className="w-full border-b border-gray-400 border-dotted h-5"></div>
+                                            <div className="w-full border-b border-gray-400 border-dotted h-5"></div>
+                                            <div className="w-full border-b border-gray-400 border-dotted h-5"></div>
+                                        </div>
+                                    ))
+                                ) : generatedLKMContent?.langkah ? (
+                                    generatedLKMContent.langkah.map((item, i) => (
+                                        <div key={i} className="break-inside-avoid">
+                                            <p className="font-semibold mb-1">Langkah {i+1}: {item}</p>
+                                            <div className="w-full border-b border-gray-400 border-dotted h-5"></div>
+                                            <div className="w-full border-b border-gray-400 border-dotted h-5"></div>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <p className="italic text-gray-400">Belum ada aktivitas investigasi. Generate LKM terlebih dahulu.</p>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* F. Analisis dan Berpikir Kritis */}
+                        <div className="border border-black p-3 relative">
+                            <div className="absolute -top-2 left-2 bg-white px-1 font-bold text-blue-900">F. Analisis & Berpikir Kritis</div>
+                            <div className="space-y-3 mt-1">
+                                {generatedLKMContent?.analisis_berpikir_kritis ? (
+                                    generatedLKMContent.analisis_berpikir_kritis.map((item, i) => (
+                                        <div key={i} className="break-inside-avoid">
+                                            <p className="font-bold mb-1">{i+1}. {item}</p>
+                                            <div className="w-full border-b border-gray-400 border-dotted h-5"></div>
+                                            <div className="w-full border-b border-gray-400 border-dotted h-5"></div>
+                                            <div className="w-full border-b border-gray-400 border-dotted h-5"></div>
+                                        </div>
+                                    ))
+                                ) : generatedLKMContent?.pertanyaan ? (
+                                    generatedLKMContent.pertanyaan.map((item, i) => (
+                                        <div key={i} className="break-inside-avoid">
+                                            <p className="font-bold mb-1">{i+1}. {item}</p>
+                                            <div className="w-full border-b border-gray-400 border-dotted h-5"></div>
+                                            <div className="w-full border-b border-gray-400 border-dotted h-5"></div>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <p className="italic text-gray-400">Belum ada pertanyaan analisis berpikir kritis.</p>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* G. Produk atau Hasil Diskusi */}
+                        <div className="border border-black p-3 relative">
+                            <div className="absolute -top-2 left-2 bg-white px-1 font-bold text-blue-900">G. Produk / Hasil Diskusi Kelompok</div>
+                            <div className="mt-1">
+                                <p className="font-semibold mb-2">Instruksi Hasil Karya:</p>
+                                <p className="text-gray-700 leading-relaxed mb-3">
+                                    {generatedLKMContent?.produk_diskusi || "Rancang dan buatlah peta konsep atau diagram ringkas tentang hubungan konsep materi yang sudah Anda diskusikan bersama kelompok pada selembar kertas gambar atau media presentasi kelompok."}
+                                </p>
+                                <div className="border border-black border-dashed h-24 flex items-center justify-center text-gray-400 text-[10px] uppercase">
+                                    Draft / Kolom Sketsa Desain Produk Kelompok
                                 </div>
-                            ) : <p className="italic text-gray-400">Belum ada pertanyaan.</p>}
+                            </div>
+                        </div>
+
+                        {/* H. Presentasi dan Komunikasi */}
+                        <div className="border border-black p-3 relative">
+                            <div className="absolute -top-2 left-2 bg-white px-1 font-bold text-blue-900">H. Presentasi & Komunikasi</div>
+                            <ul className="list-disc ml-5 space-y-1 mt-1">
+                                {generatedLKMContent?.panduan_presentasi ? (
+                                    generatedLKMContent.panduan_presentasi.map((item, i) => <li key={i}>{item}</li>)
+                                ) : (
+                                    <>
+                                        <li>Presentasikan hasil produk atau kesimpulan kelompok Anda di depan kelas secara santun.</li>
+                                        <li>Berikan tanggapan, pertanyaan, atau argumen pendukung yang konstruktif terhadap presentasi kelompok lain.</li>
+                                        <li>Lakukan refleksi bersama guru atas jalannya diskusi kelompok hari ini.</li>
+                                    </>
+                                )}
+                            </ul>
+                        </div>
+
+                        {/* I. Kesimpulan Kelompok */}
+                        <div className="border border-black p-3 relative break-inside-avoid">
+                            <div className="absolute -top-2 left-2 bg-white px-1 font-bold text-blue-900">I. Kesimpulan Kelompok</div>
+                            <div className="mt-2 space-y-2">
+                                <p className="italic text-gray-500 mb-2">Tuliskan kesimpulan akhir kelompok Anda setelah proses investigasi, diskusi, dan presentasi:</p>
+                                <div className="w-full border-b border-black border-dotted h-5"></div>
+                                <div className="w-full border-b border-black border-dotted h-5"></div>
+                                <div className="w-full border-b border-black border-dotted h-5"></div>
+                                <div className="w-full border-b border-black border-dotted h-5"></div>
+                            </div>
                         </div>
                     </div>
                 </A4Page>
             )}
 
             {activeDocs.rubrik && (
-                <A4Page className="print-break-before font-serif text-[11px] leading-snug">
+                <A4Page teacherName={formData.namaPenyusun} className="font-serif text-[11px] leading-snug">
                     <div className="print:hidden mb-4 text-center">
                         <Button onClick={onGenerateRubrik} variant="magic" isLoading={loaders['rubrik']} icon={Sparkles}>Generate Rubrik AI</Button>
                     </div>
-                    <div className="text-center font-bold text-lg mb-4 border-b-2 border-green-600 pb-2 text-green-900 font-sans">RUBRIK PENILAIAN</div>
+                    <div className="text-center font-bold text-lg mb-4 border-b-2 border-green-600 pb-2 text-green-900 font-sans uppercase">LAMPIRAN III: RUBRIK PENILAIAN</div>
                     <div className="mb-6">
                         <h3 className="font-bold text-base mb-2 text-green-800">A. Penilaian Sikap</h3>
                         <table className="w-full border border-gray-800 text-inherit mb-4">
@@ -469,20 +624,29 @@ export const RPMDocument: React.FC<PreviewProps> = ({
             )}
 
             {activeDocs.soal && (
-                <A4Page className="print-break-before font-serif text-[11px] leading-snug">
+                <A4Page teacherName={formData.namaPenyusun} className="font-serif text-[11px] leading-snug">
                      <div className="print:hidden mb-4 p-4 bg-blue-50 rounded border border-blue-200 font-sans">
-                        <div className="flex justify-between items-center mb-2">
-                            <span className="font-bold text-blue-900">Konfigurasi Soal</span>
-                            <Button onClick={onGenerateSoal} variant="magic" isLoading={isGeneratingSoal} icon={BrainCircuit} size="sm">Buat Soal</Button>
+                        <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center mb-3 gap-2">
+                            <span className="font-bold text-blue-900 text-sm">Konfigurasi Soal</span>
+                            <Button onClick={onGenerateSoal} variant="magic" isLoading={isGeneratingSoal} icon={BrainCircuit} size="sm" className="w-full sm:w-auto">Buat Soal</Button>
                         </div>
-                        <div className="grid grid-cols-3 gap-2 text-xs">
-                            <div>PG: <input type="number" className="w-12 border rounded p-1" value={soalConfig.pg} onChange={e=>setSoalConfig({...soalConfig, pg: parseInt(e.target.value) || 0})}/></div>
-                            <div>Isian: <input type="number" className="w-12 border rounded p-1" value={soalConfig.isian} onChange={e=>setSoalConfig({...soalConfig, isian: parseInt(e.target.value) || 0})}/></div>
-                            <div>Uraian: <input type="number" className="w-12 border rounded p-1" value={soalConfig.uraian} onChange={e=>setSoalConfig({...soalConfig, uraian: parseInt(e.target.value) || 0})}/></div>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+                            <div className="flex items-center justify-between sm:justify-start gap-1 bg-white p-2 rounded border">
+                                <span className="font-semibold text-gray-600">Pilihan Ganda (PG):</span>
+                                <input type="number" className="w-12 border rounded p-1 text-center font-bold font-sans" value={soalConfig.pg} onChange={e=>setSoalConfig({...soalConfig, pg: parseInt(e.target.value) || 0})}/>
+                            </div>
+                            <div className="flex items-center justify-between sm:justify-start gap-1 bg-white p-2 rounded border">
+                                <span className="font-semibold text-gray-600">Isian:</span>
+                                <input type="number" className="w-12 border rounded p-1 text-center font-bold font-sans" value={soalConfig.isian} onChange={e=>setSoalConfig({...soalConfig, isian: parseInt(e.target.value) || 0})}/>
+                            </div>
+                            <div className="flex items-center justify-between sm:justify-start gap-1 bg-white p-2 rounded border">
+                                <span className="font-semibold text-gray-600">Uraian:</span>
+                                <input type="number" className="w-12 border rounded p-1 text-center font-bold font-sans" value={soalConfig.uraian} onChange={e=>setSoalConfig({...soalConfig, uraian: parseInt(e.target.value) || 0})}/>
+                            </div>
                         </div>
                     </div>
 
-                    <div className="text-center font-bold text-lg mb-4 border-b-2 border-red-600 pb-2 text-red-900 uppercase font-sans">ASESMEN SUMATIF</div>
+                    <div className="text-center font-bold text-lg mb-4 border-b-2 border-red-600 pb-2 text-red-900 uppercase font-sans">LAMPIRAN IV: ASESMEN SUMATIF (SOAL EVALUASI)</div>
                     
                     <div className="mb-6 text-inherit">
                          <table className="w-full">
@@ -495,11 +659,12 @@ export const RPMDocument: React.FC<PreviewProps> = ({
 
                     <div className="p-6 border border-gray-300 rounded min-h-[600px] bg-white text-inherit">
                         {generatedSoalContent ? (
-                            <div dangerouslySetInnerHTML={{__html: generatedSoalContent}} className="prose max-w-none text-inherit leading-relaxed" />
+                            <div dangerouslySetInnerHTML={{__html: generatedSoalContent}} className="prose max-w-none text-inherit leading-relaxed generated-questions-list" />
                         ) : <div className="text-gray-400 italic text-center py-20 border border-dashed rounded font-sans">Soal belum dibuat. Klik tombol Generate di atas.</div>}
                     </div>
                 </A4Page>
             )}
         </div>
+    </div>
     );
 };

@@ -1,5 +1,8 @@
 {
   "name": "RPM Generator Pro V1",
-  "description": "A professional tool for teachers to generate Deep Learning Plans (Rencana Pembelajaran Mendalam) with AI assistance, featuring PDF context support and Word export.",
-  "requestFramePermissions": []
+  "description": "A professional tool for teachers to generate Deep Learning Plans (Rencana Pembelajaran Mendalam) with custom Gemini API key selection, license key generator, and activation engine.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }
