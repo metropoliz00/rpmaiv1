@@ -17,6 +17,8 @@ interface Step2Props extends StepProps {
 
 interface Step3Props extends StepProps {
   generateField: (field: string, target?: string) => void;
+  onGenerateBulkRPM: () => void;
+  onGenerateBulkLampiran: () => void;
   loaders: Record<string, boolean>;
 }
 
@@ -26,17 +28,17 @@ export const Step1Identitas: React.FC<StepProps> = ({ formData, setFormData }) =
       <SectionTitle title="Identitas & Profil Sekolah" icon={User} />
       <div className="bg-gray-50 p-5 rounded-xl border border-gray-200 mb-6">
         <div className="grid grid-cols-1 gap-6">
-            <InputGroup label="Nama Sekolah" required><input type="text" className="w-full p-3 border border-gray-300 rounded-lg" value={formData.namaSekolah} onChange={(e) => setFormData({...formData, namaSekolah: e.target.value})} /></InputGroup>
+            <InputGroup label="Nama Sekolah" required><input type="text" className="w-full p-3 border border-gray-300 rounded-lg" value={formData.namaSekolah} onChange={(e) => setFormData({...formData, namaSekolah: e.target.value})} placeholder="Masukkan nama sekolah" /></InputGroup>
         </div>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="bg-gray-50 p-5 rounded-xl border border-gray-200">
-             <InputGroup label="Nama Kepala Sekolah"><input type="text" className="w-full p-3 border border-gray-300 rounded-lg" value={formData.namaKepalaSekolah} onChange={(e) => setFormData({...formData, namaKepalaSekolah: e.target.value})} /></InputGroup>
-             <InputGroup label="NIP Kepala Sekolah"><input type="text" className="w-full p-3 border border-gray-300 rounded-lg" value={formData.nipKepalaSekolah} onChange={(e) => setFormData({...formData, nipKepalaSekolah: e.target.value})} /></InputGroup>
+             <InputGroup label="Nama Kepala Sekolah"><input type="text" className="w-full p-3 border border-gray-300 rounded-lg" value={formData.namaKepalaSekolah} onChange={(e) => setFormData({...formData, namaKepalaSekolah: e.target.value})} placeholder="Masukkan nama kepala sekolah" /></InputGroup>
+             <InputGroup label="NIP Kepala Sekolah"><input type="text" className="w-full p-3 border border-gray-300 rounded-lg" value={formData.nipKepalaSekolah} onChange={(e) => setFormData({...formData, nipKepalaSekolah: e.target.value})} placeholder="Masukkan NIP kepala sekolah" /></InputGroup>
           </div>
           <div className="bg-gray-50 p-5 rounded-xl border border-gray-200">
-             <InputGroup label="Nama Guru"><input type="text" className="w-full p-3 border border-gray-300 rounded-lg" value={formData.namaPenyusun} onChange={(e) => setFormData({...formData, namaPenyusun: e.target.value})} /></InputGroup>
-             <InputGroup label="NIP Guru"><input type="text" className="w-full p-3 border border-gray-300 rounded-lg" value={formData.nipPenyusun} onChange={(e) => setFormData({...formData, nipPenyusun: e.target.value})} /></InputGroup>
+             <InputGroup label="Nama Guru"><input type="text" className="w-full p-3 border border-gray-300 rounded-lg" value={formData.namaPenyusun} onChange={(e) => setFormData({...formData, namaPenyusun: e.target.value})} placeholder="Masukkan nama guru" /></InputGroup>
+             <InputGroup label="NIP Guru"><input type="text" className="w-full p-3 border border-gray-300 rounded-lg" value={formData.nipPenyusun} onChange={(e) => setFormData({...formData, nipPenyusun: e.target.value})} placeholder="Masukkan NIP guru" /></InputGroup>
           </div>
       </div>
     </div>
@@ -91,7 +93,7 @@ export const Step2Konten: React.FC<Step2Props> = ({ formData, setFormData, uploa
                 <option value="KKA">KKA</option>
             </select>
         </InputGroup>
-        <InputGroup label="Materi Pokok"><input type="text" className="w-full p-3 border border-gray-300 rounded-lg" value={formData.materiPokok} onChange={(e) => setFormData({...formData, materiPokok: e.target.value})} /></InputGroup>
+        <InputGroup label="Materi Pokok"><input type="text" className="w-full p-3 border border-gray-300 rounded-lg" value={formData.materiPokok} onChange={(e) => setFormData({...formData, materiPokok: e.target.value})} placeholder="Masukkan materi pokok" /></InputGroup>
         <InputGroup label="Kelas">
              <select className="w-full p-3 border border-gray-300 rounded-lg bg-white" value={formData.kelas} onChange={(e) => setFormData({...formData, kelas: e.target.value})}>
                 <option value="">Pilih Kelas</option>
@@ -169,10 +171,13 @@ const metodeOptions = [
   "Mind Mapping",
   "Pengamatan Lingkungan",
   "Kerja Kelompok",
-  "Sosiodrama"
+  "Sosiodrama",
+  "Lainnya"
 ];
 
-export const Step3Detail: React.FC<Step3Props> = ({ formData, setFormData, generateField, loaders }) => {
+const pendekatanOptions = ["Kontekstual", "Saintifik", "Gamifikasi", "Kooperatif", "Problem Solving", "Lainnya"];
+
+export const Step3Detail: React.FC<Step3Props> = ({ formData, setFormData, generateField, onGenerateBulkRPM, onGenerateBulkLampiran, loaders }) => {
     const handleDplChange = (label: string) => {
         if (formData.dpl.includes(label)) {
             setFormData({...formData, dpl: formData.dpl.filter(d => d !== label)});
@@ -202,20 +207,40 @@ export const Step3Detail: React.FC<Step3Props> = ({ formData, setFormData, gener
             {/* Capaian Pembelajaran */}
             <div className="p-6 bg-white border border-gray-200 rounded-xl shadow-sm">
                 <InputGroup label="Capaian Pembelajaran (CP)" subLabel="Salin CP dari kurikulum">
-                    <textarea className="w-full p-3 border border-gray-300 rounded-lg h-32" value={formData.capaianPembelajaran} onChange={(e) => setFormData({...formData, capaianPembelajaran: e.target.value})} />
+                    <textarea className="w-full p-3 border border-gray-300 rounded-lg h-32" value={formData.capaianPembelajaran} onChange={(e) => setFormData({...formData, capaianPembelajaran: e.target.value})} placeholder="Masukkan capaian pembelajaran" />
                 </InputGroup>
             </div>
 
             {/* Model & Metode */}
             <div className="p-6 bg-white border border-gray-200 rounded-xl shadow-sm grid grid-cols-1 md:grid-cols-2 gap-6">
+                <InputGroup label="Pendekatan Pembelajaran">
+                    <select className="w-full p-3 border border-gray-300 rounded-lg bg-white" value={pendekatanOptions.includes(formData.pendekatanPembelajaran) ? formData.pendekatanPembelajaran : (formData.pendekatanPembelajaran ? 'Lainnya' : '')} onChange={(e) => {
+                        if (e.target.value === 'Lainnya') setFormData({...formData, pendekatanPembelajaran: ''});
+                        else setFormData({...formData, pendekatanPembelajaran: e.target.value});
+                    }}>
+                        <option value="">Pilih Pendekatan</option>
+                        {pendekatanOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                    </select>
+                    {!pendekatanOptions.includes(formData.pendekatanPembelajaran) && formData.pendekatanPembelajaran !== '' && (
+                        <input type="text" className="w-full p-3 mt-2 border border-gray-300 rounded-lg" value={formData.pendekatanPembelajaran} onChange={(e) => setFormData({...formData, pendekatanPembelajaran: e.target.value})} placeholder="Masukkan pendekatan pembelajaran lainnya" />
+                    )}
+                </InputGroup>
+
                 <InputGroup label="Model Pembelajaran">
-                    <select className="w-full p-3 border border-gray-300 rounded-lg bg-white" value={formData.modelPembelajaran} onChange={(e) => setFormData({...formData, modelPembelajaran: e.target.value})}>
+                    <select className="w-full p-3 border border-gray-300 rounded-lg bg-white" value={formData.modelPembelajaran === 'Problem Based Learning (PBL)' || formData.modelPembelajaran === 'Project Based Learning (PjBL)' || formData.modelPembelajaran === 'Discovery Learning' || formData.modelPembelajaran === 'Inquiry Learning' || formData.modelPembelajaran === 'Cooperative Learning' ? formData.modelPembelajaran : 'Lainnya'} onChange={(e) => {
+                        if (e.target.value === 'Lainnya') setFormData({...formData, modelPembelajaran: ''});
+                        else setFormData({...formData, modelPembelajaran: e.target.value});
+                    }}>
                         <option value="Problem Based Learning (PBL)">Problem Based Learning (PBL)</option>
                         <option value="Project Based Learning (PjBL)">Project Based Learning (PjBL)</option>
                         <option value="Discovery Learning">Discovery Learning</option>
                         <option value="Inquiry Learning">Inquiry Learning</option>
                         <option value="Cooperative Learning">Cooperative Learning</option>
+                        <option value="Lainnya">Lainnya</option>
                     </select>
+                    {!(formData.modelPembelajaran === 'Problem Based Learning (PBL)' || formData.modelPembelajaran === 'Project Based Learning (PjBL)' || formData.modelPembelajaran === 'Discovery Learning' || formData.modelPembelajaran === 'Inquiry Learning' || formData.modelPembelajaran === 'Cooperative Learning') && (
+                        <input type="text" className="w-full p-3 mt-2 border border-gray-300 rounded-lg" value={formData.modelPembelajaran} onChange={(e) => setFormData({...formData, modelPembelajaran: e.target.value})} placeholder="Masukkan model pembelajaran lainnya" />
+                    )}
                 </InputGroup>
 
                 <div className="col-span-1 md:col-span-2 border-t border-gray-100 pt-4">
@@ -228,22 +253,28 @@ export const Step3Detail: React.FC<Step3Props> = ({ formData, setFormData, gener
                             </div>
                         ))}
                     </div>
+                    {selectedMetodeList.includes('Lainnya') && (
+                        <input type="text" className="w-full p-3 mt-2 border border-gray-300 rounded-lg" onChange={(e) => {
+                             const newList = selectedMetodeList.filter(m => m !== 'Lainnya');
+                             setFormData({...formData, metode: [...newList, e.target.value].join(', ')});
+                        }} placeholder="Masukkan metode pembelajaran lainnya" />
+                    )}
                 </div>
             </div>
             
             {/* Media & Lingkungan */}
              <div className="p-6 bg-white border border-gray-200 rounded-xl shadow-sm grid grid-cols-1 md:grid-cols-2 gap-6">
-                <InputGroup label="Pemanfaatan Digital" onGenerateAI={() => generateField('alatDigital')} isGenerating={loaders['alatDigital']}>
-                    <input type="text" className="w-full p-3 border border-gray-300 rounded-lg" value={formData.alatDigital} onChange={(e) => setFormData({...formData, alatDigital: e.target.value})} />
+                <InputGroup label="Pemanfaatan Digital">
+                    <input type="text" className="w-full p-3 border border-gray-300 rounded-lg" value={formData.alatDigital} onChange={(e) => setFormData({...formData, alatDigital: e.target.value})} placeholder="Masukkan media/alat digital" />
                 </InputGroup>
-                <InputGroup label="Lingkungan Belajar" onGenerateAI={() => generateField('lingkunganBelajar')} isGenerating={loaders['lingkunganBelajar']}>
-                    <input type="text" className="w-full p-3 border border-gray-300 rounded-lg" value={formData.lingkunganBelajar} onChange={(e) => setFormData({...formData, lingkunganBelajar: e.target.value})} />
+                <InputGroup label="Lingkungan Belajar">
+                    <input type="text" className="w-full p-3 border border-gray-300 rounded-lg" value={formData.lingkunganBelajar} onChange={(e) => setFormData({...formData, lingkunganBelajar: e.target.value})} placeholder="Masukkan deskripsi lingkungan belajar" />
                 </InputGroup>
-                 <InputGroup label="Lintas Disiplin Ilmu" onGenerateAI={() => generateField('lintasDisiplin')} isGenerating={loaders['lintasDisiplin']}>
-                    <input type="text" className="w-full p-3 border border-gray-300 rounded-lg" value={formData.lintasDisiplin} onChange={(e) => setFormData({...formData, lintasDisiplin: e.target.value})} />
+                 <InputGroup label="Lintas Disiplin Ilmu">
+                    <input type="text" className="w-full p-3 border border-gray-300 rounded-lg" value={formData.lintasDisiplin} onChange={(e) => setFormData({...formData, lintasDisiplin: e.target.value})} placeholder="Masukkan disiplin ilmu terkait" />
                 </InputGroup>
-                <InputGroup label="Kemitraan" onGenerateAI={() => generateField('kemitraan')} isGenerating={loaders['kemitraan']}>
-                    <input type="text" className="w-full p-3 border border-gray-300 rounded-lg" value={formData.kemitraan} onChange={(e) => setFormData({...formData, kemitraan: e.target.value})} />
+                <InputGroup label="Kemitraan">
+                    <input type="text" className="w-full p-3 border border-gray-300 rounded-lg" value={formData.kemitraan} onChange={(e) => setFormData({...formData, kemitraan: e.target.value})} placeholder="Masukkan pihak kemitraan" />
                 </InputGroup>
             </div>
 
@@ -262,8 +293,8 @@ export const Step3Detail: React.FC<Step3Props> = ({ formData, setFormData, gener
 
             {/* Tujuan Pembelajaran Moved Here */}
             <div className="p-4 sm:p-6 bg-white border border-gray-200 rounded-xl shadow-sm">
-                <InputGroup label="Tujuan Pembelajaran" subLabel="AI akan menggunakan data Model, Media, dan Lingkungan yang telah diisi di atas untuk membuat tujuan yang relevan." onGenerateAI={() => generateField('tujuanPembelajaran')} isGenerating={loaders['tujuanPembelajaran']}>
-                    <textarea className="w-full p-3 border border-gray-300 rounded-lg h-32" value={formData.tujuanPembelajaran} onChange={(e) => setFormData({...formData, tujuanPembelajaran: e.target.value})} />
+                <InputGroup label="Tujuan Pembelajaran" subLabel="AI akan menggunakan data Model, Media, dan Lingkungan yang telah diisi di atas untuk membuat tujuan yang relevan.">
+                    <textarea className="w-full p-3 border border-gray-300 rounded-lg h-32" value={formData.tujuanPembelajaran} onChange={(e) => setFormData({...formData, tujuanPembelajaran: e.target.value})} placeholder="Masukkan tujuan pembelajaran" />
                 </InputGroup>
             </div>
 
@@ -418,40 +449,50 @@ export const Step3Detail: React.FC<Step3Props> = ({ formData, setFormData, gener
                      </div>
                  )}
 
-                 <InputGroup label="Kegiatan Awal" subLabel="Pendahuluan, Apersepsi, Pemantik" onGenerateAI={() => generateField('kegiatanAwal')} isGenerating={loaders['kegiatanAwal']}>
-                    <textarea className="w-full p-3 border border-gray-300 rounded-lg h-40 font-mono text-sm" value={formData.kegiatanAwal} onChange={(e) => setFormData({...formData, kegiatanAwal: e.target.value})} />
+                 <InputGroup label="Kegiatan Awal" subLabel="Pendahuluan, Apersepsi, Pemantik">
+                    <textarea className="w-full p-3 border border-gray-300 rounded-lg h-40 font-mono text-sm" value={formData.kegiatanAwal} onChange={(e) => setFormData({...formData, kegiatanAwal: e.target.value})} placeholder="Masukkan kegiatan awal" />
                 </InputGroup>
                 
                 <div className="border-t pt-4">
                     <div className="flex justify-between items-center mb-4">
                          <label className="block text-sm font-bold text-gray-700">Kegiatan Inti</label>
-                         <button 
-                            type="button" 
-                            onClick={() => generateField('kegiatanInti')} 
-                            disabled={loaders['kegiatanInti']}
-                            className="text-xs flex items-center gap-1 text-purple-600 bg-purple-50 px-2 py-1 rounded-md hover:bg-purple-100 transition-colors disabled:opacity-50"
-                        >
-                            {loaders['kegiatanInti'] ? <Loader2 size={12} className="animate-spin"/> : <Sparkles size={12}/>}
-                            Generate Full Inti (3 Tahap)
-                        </button>
                     </div>
                     
                     <div className="space-y-4 pl-4 border-l-4 border-blue-100">
                         <InputGroup label="1. Memahami (Awal Model)" subLabel="Aktivitas murid mengamati/menanya">
-                            <textarea className="w-full p-3 border border-gray-300 rounded-lg h-32 font-mono text-sm" value={formData.intiMemahami} onChange={(e) => setFormData({...formData, intiMemahami: e.target.value})} />
+                            <textarea className="w-full p-3 border border-gray-300 rounded-lg h-32 font-mono text-sm" value={formData.intiMemahami} onChange={(e) => setFormData({...formData, intiMemahami: e.target.value})} placeholder="Contoh: Murid melakukan observasi..." />
                         </InputGroup>
                          <InputGroup label="2. Mengaplikasikan (Tengah Model)" subLabel="Aktivitas murid mencoba/diskusi">
-                            <textarea className="w-full p-3 border border-gray-300 rounded-lg h-32 font-mono text-sm" value={formData.intiMengaplikasikan} onChange={(e) => setFormData({...formData, intiMengaplikasikan: e.target.value})} />
+                            <textarea className="w-full p-3 border border-gray-300 rounded-lg h-32 font-mono text-sm" value={formData.intiMengaplikasikan} onChange={(e) => setFormData({...formData, intiMengaplikasikan: e.target.value})} placeholder="Contoh: Murid berdiskusi..." />
                         </InputGroup>
                          <InputGroup label="3. Merefleksi (Akhir Model)" subLabel="Aktivitas murid menyimpulkan">
-                            <textarea className="w-full p-3 border border-gray-300 rounded-lg h-32 font-mono text-sm" value={formData.intiMerefleksi} onChange={(e) => setFormData({...formData, intiMerefleksi: e.target.value})} />
+                            <textarea className="w-full p-3 border border-gray-300 rounded-lg h-32 font-mono text-sm" value={formData.intiMerefleksi} onChange={(e) => setFormData({...formData, intiMerefleksi: e.target.value})} placeholder="Contoh: Murid menyimpulkan..." />
                         </InputGroup>
                     </div>
                 </div>
 
-                <InputGroup label="Kegiatan Penutup" subLabel="Refleksi, Apresiasi, Tindak Lanjut" onGenerateAI={() => generateField('kegiatanPenutup')} isGenerating={loaders['kegiatanPenutup']}>
-                    <textarea className="w-full p-3 border border-gray-300 rounded-lg h-40 font-mono text-sm" value={formData.kegiatanPenutup} onChange={(e) => setFormData({...formData, kegiatanPenutup: e.target.value})} />
+                <InputGroup label="Kegiatan Penutup" subLabel="Refleksi, Apresiasi, Tindak Lanjut">
+                    <textarea className="w-full p-3 border border-gray-300 rounded-lg h-40 font-mono text-sm" value={formData.kegiatanPenutup} onChange={(e) => setFormData({...formData, kegiatanPenutup: e.target.value})} placeholder="Masukkan kegiatan penutup" />
                 </InputGroup>
+
+                <div className="p-4 bg-purple-50 border border-purple-100 rounded-xl shadow-sm flex flex-wrap gap-4 justify-center mt-8 animate-fade-in">
+                    <button 
+                        onClick={onGenerateBulkRPM} 
+                            disabled={loaders['rpm']}
+                            className="px-6 py-3 bg-purple-600 text-white rounded-xl text-xs font-bold hover:bg-purple-700 transition-all flex items-center gap-2 shadow-lg disabled:opacity-50"
+                        >
+                            {loaders['rpm'] ? <Loader2 size={16} className="animate-spin"/> : <Sparkles size={16}/>}
+                            Generate Full RPM
+                        </button>
+                        <button 
+                            onClick={onGenerateBulkLampiran} 
+                            disabled={loaders['lampiran']}
+                            className="px-6 py-3 bg-blue-600 text-white rounded-xl text-xs font-bold hover:bg-blue-700 transition-all flex items-center gap-2 shadow-lg disabled:opacity-50"
+                        >
+                            {loaders['lampiran'] ? <Loader2 size={16} className="animate-spin"/> : <Sparkles size={16}/>}
+                            Generate Full Lampiran
+                        </button>
+                </div>
             </div>
         </div>
     );

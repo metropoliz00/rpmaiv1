@@ -3,7 +3,7 @@ import {
   Bot, Key, Mail, Lock, Sparkles, Copy, Check, 
   ExternalLink, Eye, EyeOff, ShieldCheck, HelpCircle,
   Trash2, UserPlus, CheckCircle2, AlertTriangle, ToggleLeft, ToggleRight, Users, ChevronLeft, X,
-  MessageCircle
+  MessageCircle, Save
 } from 'lucide-react';
 import { Button } from './UI';
 import { 
@@ -17,6 +17,7 @@ import {
   validateUserActivation,
   RegisteredUser 
 } from '../services/licenseService';
+import { getAdminPassword, updateAdminPassword } from '../services/adminService';
 
 interface ActivationScreenProps {
   onActivated: () => void;
@@ -25,6 +26,7 @@ interface ActivationScreenProps {
 export const ActivationScreen: React.FC<ActivationScreenProps> = ({ onActivated }) => {
   // Page toggle state: 'user' (default clean page) or 'admin' (separate page)
   const [viewMode, setViewMode] = useState<'user' | 'admin'>('user');
+  const [dbAdminPassword, setDbAdminPassword] = useState('admin123');
 
   // Activation form states - initially blank placeholders as requested
   const [email, setEmail] = useState('');
@@ -39,6 +41,8 @@ export const ActivationScreen: React.FC<ActivationScreenProps> = ({ onActivated 
   const [adminPassword, setAdminPassword] = useState('');
   const [adminError, setAdminError] = useState<string | null>(null);
   const [registeredUsers, setRegisteredUsers] = useState<RegisteredUser[]>([]);
+  const [newAdminPassword, setNewAdminPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   // Add User Form States
   const [newEmail, setNewEmail] = useState('');
@@ -49,10 +53,12 @@ export const ActivationScreen: React.FC<ActivationScreenProps> = ({ onActivated 
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
   const [successToast, setSuccessToast] = useState<string | null>(null);
 
-  // Load registered users on mount
+  // Load registered users and admin password on mount
   useEffect(() => {
     const list = getRegisteredUsers();
     setRegisteredUsers(list);
+    
+    getAdminPassword().then(setDbAdminPassword);
   }, [viewMode]);
 
   // Detect registered user and check token
@@ -123,8 +129,8 @@ export const ActivationScreen: React.FC<ActivationScreenProps> = ({ onActivated 
     setAdminError(null);
     const pass = adminPassword.trim();
     
-    // Default admin passwords
-    if (pass === 'admin123' || pass === 'adminrpmpro' || pass === 'admin' || pass === 'dedymeyga') {
+    // Check against DB password
+    if (pass === dbAdminPassword) {
       setIsAdmin(true);
       setAdminPassword('');
       setSuccessToast("Akses Admin Terbuka!");
@@ -370,6 +376,52 @@ export const ActivationScreen: React.FC<ActivationScreenProps> = ({ onActivated 
             ) : (
               <div className="animate-fade-in space-y-6">
                 
+                {/* Password Management */}
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 shadow-sm">
+                  <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                    <Lock size={14} /> Keamanan Admin
+                  </h3>
+                  
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-600 mb-1.5 flex items-center gap-1.5">
+                        <Key size={12} /> Ubah Password Admin
+                      </label>
+                      <div className="flex gap-2">
+                        <div className="relative w-full">
+                          <input 
+                            type={showPassword ? 'text' : 'password'}
+                            value={newAdminPassword}
+                            onChange={(e) => setNewAdminPassword(e.target.value)}
+                            placeholder="Masukkan password baru"
+                            className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-purple-500 transition-all text-xs shadow-sm pr-9"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowPassword(!showPassword)}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                          >
+                            {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                          </button>
+                        </div>
+                        <button
+                          onClick={async () => {
+                            if (!newAdminPassword.trim()) return;
+                            await updateAdminPassword(newAdminPassword.trim());
+                            setDbAdminPassword(newAdminPassword.trim());
+                            setNewAdminPassword('');
+                            setSuccessToast("Password Admin berhasil diperbarui!");
+                            setTimeout(() => setSuccessToast(null), 2500);
+                          }}
+                          className="bg-slate-800 hover:bg-slate-900 text-white font-bold px-3 py-2 rounded-lg text-xs transition-colors"
+                        >
+                          <Save size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Add User Section */}
                 <div className="bg-purple-50/50 border border-purple-100 rounded-xl p-4 shadow-sm">
                   <h3 className="text-xs font-bold text-purple-700 uppercase tracking-wider mb-3 flex items-center gap-1.5">

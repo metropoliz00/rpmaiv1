@@ -9,9 +9,11 @@ import { Step1Identitas, Step2Konten, Step3Detail } from './components/FormSteps
 import { RPMDocument } from './components/Preview';
 import { Button } from './components/UI';
 import { initialFormData, RPMData, RubrikData, LKMData } from './types';
-import { generateContent, cleanJSON, buildPrompt } from './services/geminiService';
+import { generateContent, cleanJSON, buildBulkPrompts, buildPrompt } from './services/geminiService';
 import { ActivationScreen } from './components/ActivationScreen';
 import { checkIsActivated, clearCredentials, getSavedCredentials, saveCredentials } from './services/licenseService';
+import { db } from './services/firebase';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 export default function App() {
   const [isActivated, setIsActivated] = useState(checkIsActivated());
@@ -27,18 +29,52 @@ export default function App() {
   const [showPreview, setShowPreview] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [showDevInfo, setShowDevInfo] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [showApiKey, setShowApiKey] = useState(false);
+  const [userGeminiKey, setUserGeminiKey] = useState(localStorage.getItem('user_gemini_api_key') || '');
+
+  // Load Gemini Key from Firestore on activation
+  React.useEffect(() => {
+    const loadUserKey = async () => {
+      if (isActivated) {
+        const creds = getSavedCredentials();
+        if (creds && creds.email) {
+          try {
+            const userDoc = await getDoc(doc(db, 'users', creds.email));
+            if (userDoc.exists() && userDoc.data().geminiApiKey) {
+              const cloudKey = userDoc.data().geminiApiKey;
+              setUserGeminiKey(cloudKey);
+              localStorage.setItem('user_gemini_api_key', cloudKey);
+            }
+          } catch (e) {
+            console.error("Gagal memuat API Key dari cloud:", e);
+          }
+        }
+      }
+    };
+    loadUserKey();
+  }, [isActivated]);
   
   // Loading states
   const [loaders, setLoaders] = useState<Record<string, boolean>>({});
   
+  const [formData, setFormData] = useState<RPMData>(() => {
+    try {
+      const saved = localStorage.getItem('rpm_form_data');
+      return saved ? JSON.parse(saved) : initialFormData;
+    } catch (e) {
+      return initialFormData;
+    }
+  });
+
   // Content states
-  const [generatedSoalContent, setGeneratedSoalContent] = useState("");
-  const [generatedMateriContent, setGeneratedMateriContent] = useState("");
-  const [generatedRubrikContent, setGeneratedRubrikContent] = useState<RubrikData>({
+  const [generatedSoalContent, setGeneratedSoalContent] = useState(formData.soalContent || "");
+  const [generatedMateriContent, setGeneratedMateriContent] = useState(formData.materiContent || "");
+  const [generatedRubrikContent, setGeneratedRubrikContent] = useState<RubrikData>(formData.rubrikContent || {
       sikap: [],
       keterampilan: []
   });
-  const [generatedLKMContent, setGeneratedLKMContent] = useState<LKMData | null>(null);
+  const [generatedLKMContent, setGeneratedLKMContent] = useState<LKMData | null>(formData.lkmContent || null);
 
   // PDF/Context
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
@@ -59,14 +95,6 @@ export default function App() {
   });
 
   const [isGeneratingSoal, setIsGeneratingSoal] = useState(false);
-  const [formData, setFormData] = useState<RPMData>(() => {
-    try {
-      const saved = localStorage.getItem('rpm_form_data');
-      return saved ? JSON.parse(saved) : initialFormData;
-    } catch (e) {
-      return initialFormData;
-    }
-  });
 
   // Auto-save formData to localStorage whenever it changes
   React.useEffect(() => {
@@ -134,7 +162,7 @@ export default function App() {
       try {
           // Special handler for JSON output in 'kegiatanInti'
           if (fieldName === 'kegiatanInti') {
-               const res = await generateContent(prompt);
+               const res = await generateContent(prompt, userGeminiKey);
                const json = cleanJSON(res);
                if (json) {
                    setFormData(prev => ({
@@ -145,7 +173,7 @@ export default function App() {
                    }));
                }
           } else {
-              const result = await generateContent(prompt);
+              const result = await generateContent(prompt, userGeminiKey);
               setFormData(prev => ({ ...prev, [targetField]: result.trim() }));
           }
       } catch (e) {
@@ -178,34 +206,36 @@ export default function App() {
         8. Sertakan hubungan sebab-akibat, fungsi, manfaat, ciri-ciri, langkah-langkah, atau klasifikasi jika relevan dengan materi.
         9. Jika terdapat rumus, tampilkan rumus beserta penjelasan singkat maknanya.
         10. Jika terdapat proses atau tahapan, sajikan dalam urutan yang jelas.
-        11. Akhiri dengan bagian "Inti Materi yang Harus Diingat" berisi 5–10 poin paling penting.
+        8. Akhiri dengan "Inti Materi yang Harus Diingat" berisi 5–10 poin esensial.
 
-        Format Output Wajib (Gunakan tag HTML berikut secara tepat):
+        Format Output Wajib (HTML):
         <h3>Ringkasan Materi</h3>
-        <h4>Konsep Utama</h4>
-        <p>(Jelaskan konsep-konsep inti materi secara singkat dan jelas)</p>
         
-        <h4>Poin-Poin Penting</h4>
-        <p>(Sajikan fakta, prinsip, ciri-ciri, manfaat, fungsi, rumus, atau klasifikasi yang harus dipahami murid. Gunakan tag &lt;ul&gt; &lt;li&gt; atau &lt;table&gt; jika diperlukan)</p>
+        <h4>1. Konsep Utama</h4>
+        <p>(Jelaskan konsep inti secara singkat dan jelas)</p>
         
-        <h4>Hubungan Antar Konsep</h4>
-        <p>(Jelaskan keterkaitan antar konsep dalam materi)</p>
+        <h4>2. Poin-Poin Penting</h4>
+        <p>(Sajikan fakta, prinsip, ciri-ciri, manfaat, fungsi, rumus, atau klasifikasi)</p>
         
-        <h4>Inti Materi yang Harus Diingat</h4>
-        <ul style="list-style-type: none; padding-left: 0;">
-          <li>✓ Poin penting 1</li>
-          <li>✓ Poin penting 2</li>
-          <li>✓ Poin penting 3</li>
-          <li>✓ dan seterusnya (sajikan 5-10 poin paling penting)</li>
+        <h4>3. Hubungan Antar Konsep</h4>
+        <p>(Jelaskan keterkaitan antar konsep)</p>
+        
+        <h4>4. Inti Materi yang Harus Diingat</h4>
+        <ul>
+          <li>Poin penting 1</li>
+          <li>Poin penting 2</li>
+          <li>...</li>
         </ul>
 
         Aturan teknis:
-        - Gunakan tag HTML seperti <h3>, <h4>, <p>, <ul>, <li>, <strong>, <em>, atau <table>, <tr>, <td> untuk tabel.
-        - JANGAN gunakan markdown. Keluarkan HANYA kode HTML yang siap dirender di dalam div dangerouslySetInnerHTML.
+        - Gunakan tag HTML: <h3>, <h4>, <p>, <ol>, <ul>, <li>, <strong>, <table>, <tr>, <td>.
+        - JANGAN gunakan markdown. Keluarkan HANYA kode HTML murni.
     `;
     try {
-        const res = await generateContent(prompt);
-        setGeneratedMateriContent(res.replace(/```html/g, '').replace(/```/g, '').trim());
+        const res = await generateContent(prompt, userGeminiKey);
+        const cleaned = res.replace(/```html/g, '').replace(/```/g, '').trim();
+        setGeneratedMateriContent(cleaned);
+        setFormData(prev => ({ ...prev, materiContent: cleaned }));
     } catch(e) { alert("Gagal generate materi"); }
     setLoaders(prev => ({ ...prev, materi: false }));
   };
@@ -228,7 +258,7 @@ export default function App() {
         5. Gunakan kata "Murid" secara konsisten untuk merujuk pada peserta belajar.
 
         Jumlah & Format Soal yang Wajib Dibuat:
-        - Pilihan Ganda (HOTS): ${soalConfig.pg} butir. Setiap soal harus didahului stimulus/kasus singkat, diikuti opsi pilihan ganda yang homogen dan logis (a, b, c, d ke bawah).
+        - Pilihan Ganda (HOTS): ${soalConfig.pg} butir. Setiap soal harus didahului stimulus/kasus singkat, diikuti opsi pilihan ganda yang homogen dan logis (A, B, C, D ke bawah).
         - Isian Singkat (Berpikir Kritis): ${soalConfig.isian} butir. Pertanyaan yang menuntut kesimpulan logis singkat dari suatu skenario. Sediakan titik-titik (........) untuk tempat menjawab.
         - Uraian (Berpikir Analitis & Pemecahan Masalah): ${soalConfig.uraian} butir. Pertanyaan terbuka mendalam yang menuntut argumentasi ilmiah atau solusi terstruktur. Sediakan ruang jawaban yang luas berupa beberapa baris kosong.
 
@@ -236,45 +266,62 @@ export default function App() {
          - Gunakan tag <ol> untuk daftar soal di setiap kategori (Pilihan Ganda, Isian Singkat, Uraian).
          - Pastikan setiap butir soal menggunakan tag <li> agar browser memberikan nomor secara otomatis, jelas, dan rapi.
          - JANGAN menuliskan nomor manual di awal tag <li> (misalnya jangan menulis "<li>1. Stimulus..." atau "<li>1) ...") karena itu akan menyebabkan penomoran ganda (bertumpuk). Biarkan tag <ol> dan <li> menangani penomoran otomatis secara bersih.
-        - Atur style CSS inline yang rapi agar nyaman dibaca murid (misal margin-bottom, dsb).
-        - Output HANYA berupa kode HTML murni yang siap dirender di dalam div dangerouslySetInnerHTML (tanpa pembungkus markdown block \`\`\`html atau \`\`\`).
+         - Output HANYA berupa kode HTML murni yang siap dirender di dalam div dangerouslySetInnerHTML (tanpa pembungkus markdown block \`\`\`html atau \`\`\`).
+         - Tambahkan Kunci Jawaban di bagian paling bawah. Kunci jawaban HARUS dipisahkan dari bagian soal dengan tag <div class="print-break-before"></div> supaya kunci jawaban tercetak di halaman baru (halaman yang berbeda dari soal).
 
         Contoh Struktur Output:
         <h3>A. Soal Pilihan Ganda (Berpikir Kritis & Analitis)</h3>
-        <p style="font-size: 11px; color: #4b5563; font-style: italic; margin-bottom: 8px;">Pilihlah salah satu jawaban yang paling tepat berdasarkan analisis Anda terhadap kasus yang disajikan!</p>
-        <ol style="padding-left: 20px; margin-bottom: 24px;">
-           <li style="margin-bottom: 16px;">
+        <p><em>Pilihlah salah satu jawaban yang paling tepat berdasarkan analisis Anda terhadap kasus yang disajikan!</em></p>
+        <ol>
+           <li>
               <strong>Stimulus/Skenario Kasus:</strong> [Tulis kasus/stimulus menarik di sini] <br/>
               [Pertanyaan analitik berdasarkan kasus tersebut...]<br/>
-              <span style="display: block; margin-top: 4px; padding-left: 12px;">
-                a. [Pilihan A]<br/>
-                b. [Pilihan B]<br/>
-                c. [Pilihan C]<br/>
-                d. [Pilihan D]
-              </span>
+              <ol style="list-style-type: upper-alpha;">
+                <li>[Pilihan A]</li>
+                <li>[Pilihan B]</li>
+                <li>[Pilihan C]</li>
+                <li>[Pilihan D]</li>
+              </ol>
            </li>
         </ol>
 
         <h3>B. Soal Isian Singkat (Analisis Logis)</h3>
-        <ol style="padding-left: 20px; margin-bottom: 24px;">
-           <li style="margin-bottom: 16px;">
+        <ol>
+           <li>
               <strong>Skenario Singkat:</strong> [Tulis skenario ringkas...] <br/>
               [Pertanyaan logis...] ..........................................................................................................................................
            </li>
         </ol>
 
         <h3>C. Soal Uraian (Pemecahan Masalah & Solusi Kreatif)</h3>
-        <ol style="padding-left: 20px; margin-bottom: 24px;">
-           <li style="margin-bottom: 24px;">
-              [Kasus/Masalah Kompleks...] <br/>
-              [Pertanyaan Uraian mendalam: analisislah/prediksikanlah/evaluasilah...]<br/>
-              <div style="margin-top: 12px; border: 1px dashed #9ca3af; height: 100px; padding: 8px; font-size: 10px; color: #9ca3af;">Lembar Jawaban Murid:</div>
+        <ol>
+           <li>
+              <p><strong>Kasus:</strong> [Kasus/Masalah Kompleks...]</p>
+              <p>[Pertanyaan Uraian mendalam: analisislah/prediksikanlah/evaluasilah...]</p>
+              <br/><br/><br/>
            </li>
+        </ol>
+
+        <div class="print-break-before"></div>
+        <h3>Kunci Jawaban dan Pedoman Penskoran</h3>
+        <h4>A. Pilihan Ganda</h4>
+        <ol>
+           <li>[Kunci Jawaban PG 1]</li>
+        </ol>
+        <h4>B. Isian Singkat</h4>
+        <ol>
+           <li>[Kunci Jawaban Isian 1]</li>
+        </ol>
+        <h4>C. Uraian</h4>
+        <ol>
+           <li>[Kunci Jawaban Uraian 1 dan rubrik penskoran singkat]</li>
         </ol>
      `;
      try {
-        const result = await generateContent(prompt);
-        setGeneratedSoalContent(result.replace(/```html/g, '').replace(/```/g, '').trim());
+        const result = await generateContent(prompt, userGeminiKey);
+        const cleaned = result.replace(/```html/g, '').replace(/```/g, '').trim();
+        setGeneratedSoalContent(cleaned);
+        setFormData(prev => ({ ...prev, soalContent: cleaned }));
      } catch (error) { alert("Gagal generate soal"); }
      setIsGeneratingSoal(false);
   };
@@ -286,9 +333,13 @@ export default function App() {
       JSON: { "sikap": [{"dpl": "...", "indikator": "..."}], "keterampilan": ["Indikator 1", "Indikator 2"] }
     `;
     try {
-        const res = await generateContent(prompt);
+        const res = await generateContent(prompt, userGeminiKey);
         const json = cleanJSON(res);
-        if (json) setGeneratedRubrikContent({ sikap: json.sikap || [], keterampilan: json.keterampilan || [] });
+        if (json) {
+            const data = { sikap: json.sikap || [], keterampilan: json.keterampilan || [] };
+            setGeneratedRubrikContent(data);
+            setFormData(prev => ({ ...prev, rubrikContent: data }));
+        }
     } catch(e) { alert("Gagal generate rubrik"); }
     setLoaders(prev => ({ ...prev, rubrik: false }));
   };
@@ -339,11 +390,68 @@ export default function App() {
         }
     `;
     try {
-        const res = await generateContent(prompt);
+        const res = await generateContent(prompt, userGeminiKey);
         const json = cleanJSON(res);
-        if (json) setGeneratedLKMContent(json);
+        if (json) {
+            setGeneratedLKMContent(json);
+            setFormData(prev => ({ ...prev, lkmContent: json }));
+        }
     } catch(e) { alert("Gagal generate LKM"); }
     setLoaders(prev => ({ ...prev, lkm: false }));
+  };
+
+  const generateBulkRPM = async () => {
+      setLoaders(prev => ({ ...prev, rpm: true }));
+      const prompt = buildBulkPrompts('rpm', formData);
+      try {
+          const res = await generateContent(prompt, userGeminiKey);
+          const json = cleanJSON(res);
+          if (json) {
+              setFormData(prev => ({
+                  ...prev,
+                  tujuanPembelajaran: json.tujuanPembelajaran || "",
+                  kegiatanAwal: json.kegiatanAwal || "",
+                  intiMemahami: json.kegiatanInti?.memahami || "",
+                  intiMengaplikasikan: json.kegiatanInti?.mengaplikasikan || "",
+                  intiMerefleksi: json.kegiatanInti?.merefleksi || "",
+                  kegiatanPenutup: json.kegiatanPenutup || ""
+              }));
+              setToastMessage("RPM berhasil di-generate!");
+          }
+      } catch (e) { console.error(e); alert("Gagal generate RPM"); }
+      setLoaders(prev => ({ ...prev, rpm: false }));
+      setTimeout(() => setToastMessage(null), 3000);
+  };
+
+  const generateBulkLampiran = async () => {
+      setLoaders(prev => ({ ...prev, lampiran: true }));
+      const prompt = buildBulkPrompts('lampiran', formData);
+      try {
+          const res = await generateContent(prompt, userGeminiKey);
+          const json = cleanJSON(res);
+          if (json) {
+              setFormData(prev => ({
+                  ...prev,
+                  metode: json.metode || "",
+                  lintasDisiplin: json.lintasDisiplin || "",
+                  kemitraan: json.kemitraan || "",
+                  lingkunganBelajar: json.lingkunganBelajar || "",
+                  alatDigital: json.alatDigital || "",
+                  materiContent: json.materi || "",
+                  lkmContent: json.lkm || "",
+                  rubrikContent: json.rubrik || ""
+              }));
+              
+              // Sync to individual states for Preview
+              if (json.materi) setGeneratedMateriContent(json.materi);
+              if (json.lkm) setGeneratedLKMContent(json.lkm);
+              if (json.rubrik) setGeneratedRubrikContent(json.rubrik);
+
+              setToastMessage("Lampiran berhasil di-generate!");
+          }
+      } catch (e) { console.error(e); alert("Gagal generate lampiran"); }
+      setLoaders(prev => ({ ...prev, lampiran: false }));
+      setTimeout(() => setToastMessage(null), 3000);
   };
 
   const handleDownloadWord = () => {
@@ -442,7 +550,14 @@ export default function App() {
                 </h1>
                 <p className="text-[10px] sm:text-xs text-blue-100 opacity-90 truncate">Rencana Pembelajaran Mendalam</p>
             </div>
-            <div className="flex items-center gap-1 shrink-0 ml-1 sm:ml-2">
+            <div className="flex items-center gap-1 shrink-0 ml-auto sm:ml-2">
+              <button 
+                  onClick={() => setShowSettings(true)} 
+                  className="p-1.5 rounded-full bg-white/10 hover:bg-white/20 transition-all text-blue-100 hover:text-white"
+                  title="Pengaturan API Key"
+              >
+                  <Settings size={20} className="sm:w-6 sm:h-6" />
+              </button>
               <button 
                   onClick={() => setShowDevInfo(true)} 
                   className="p-1.5 rounded-full bg-white/10 hover:bg-white/20 transition-all text-blue-100 hover:text-white"
@@ -477,7 +592,7 @@ export default function App() {
                 <form>
                     {step === 1 && <Step1Identitas formData={formData} setFormData={setFormData} />}
                     {step === 2 && <Step2Konten formData={formData} setFormData={setFormData} uploadedFile={uploadedFile} setUploadedFile={setUploadedFile} additionalContext={additionalContext} setAdditionalContext={setAdditionalContext} />}
-                    {step === 3 && <Step3Detail formData={formData} setFormData={setFormData} generateField={handleGenerateField} loaders={loaders} />}
+                    {step === 3 && <Step3Detail formData={formData} setFormData={setFormData} generateField={handleGenerateField} onGenerateBulkRPM={generateBulkRPM} onGenerateBulkLampiran={generateBulkLampiran} loaders={loaders} />}
                 </form>
                 <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center mt-8 pt-6 border-t border-gray-100 gap-4">
                     <div className="flex flex-col sm:flex-row gap-3">
@@ -534,7 +649,10 @@ export default function App() {
                         onGenerateLKM={generateLKMAI}
                         onGenerateRubrik={generateRubrikAI}
                         onGenerateSoal={generateSoalAI}
+                        onGenerateBulkRPM={generateBulkRPM}
+                        onGenerateBulkLampiran={generateBulkLampiran}
                         isGeneratingSoal={isGeneratingSoal}
+                        isGeneratingBulk={loaders['rpm'] || loaders['lampiran']}
                     />
                 </div>
             </div>
@@ -618,6 +736,55 @@ export default function App() {
                     >
                         Ya, Keluar
                     </button>
+                </div>
+            </div>
+        </div>
+      )}
+
+      {/* Settings Modal */}
+      {showSettings && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in print:hidden">
+            <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl relative animate-fade-in-up">
+                <h2 className="text-xl font-bold mb-4 flex items-center gap-2"><Settings className="text-blue-600" /> Pengaturan API Key</h2>
+                <p className="text-sm text-gray-600 mb-4">Masukkan API Key Gemini Anda untuk menggunakan kuota pribadi. Jika dikosongkan, aplikasi akan menggunakan kuota pusat (jika tersedia).</p>
+                
+                <div className="relative mb-6 flex items-center">
+                    <input 
+                        type={showApiKey ? "text" : "password"} 
+                        value={userGeminiKey} 
+                        onChange={(e) => setUserGeminiKey(e.target.value)}
+                        className="w-full p-3 pl-10 pr-10 border border-gray-300 rounded-lg"
+                        placeholder="Masukkan Gemini API Key..."
+                    />
+                    <Key size={18} className="absolute left-3 top-3.5 text-gray-400" />
+                    <button 
+                        type="button"
+                        onClick={() => setShowApiKey(!showApiKey)}
+                        className="absolute right-3 top-3.5 text-gray-400 hover:text-gray-600 transition-colors"
+                    >
+                        {showApiKey ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                </div>
+                
+                <div className="flex gap-3 justify-end">
+                     <button onClick={() => setShowSettings(false)} className="px-4 py-2 bg-gray-200 rounded-lg font-medium">Batal</button>
+                     <button onClick={async () => {
+                         if (userGeminiKey.trim() === "") {
+                             localStorage.removeItem('user_gemini_api_key');
+                         } else {
+                             localStorage.setItem('user_gemini_api_key', userGeminiKey);
+                             // Save to Firestore if activated
+                             const creds = getSavedCredentials();
+                             if (creds && creds.email) {
+                                 try {
+                                     await setDoc(doc(db, 'users', creds.email), { geminiApiKey: userGeminiKey }, { merge: true });
+                                 } catch (e) { console.error("Gagal simpan ke cloud:", e); }
+                             }
+                         }
+                         setShowSettings(false);
+                         setToastMessage("API Key berhasil diperbarui!");
+                         setTimeout(() => setToastMessage(null), 3000);
+                     }} className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium">Simpan</button>
                 </div>
             </div>
         </div>

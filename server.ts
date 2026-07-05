@@ -17,9 +17,7 @@ async function startServer() {
         return res.status(400).json({ error: "Prompt is required" });
       }
 
-      // Determine the API Key to use:
-      // 1. If user provided their own key and it's not a dummy placeholder, use it
-      // 2. Otherwise use the server's GEMINI_API_KEY
+      // Determine the API Key to use
       let apiKeyToUse = process.env.GEMINI_API_KEY;
       if (userApiKey && userApiKey.trim() !== "" && !userApiKey.includes("DUMMY")) {
         apiKeyToUse = userApiKey;
@@ -27,7 +25,7 @@ async function startServer() {
 
       if (!apiKeyToUse) {
         return res.status(500).json({
-          error: "API Key Gemini tidak ditemukan di server. Silakan masukkan API Key Gemini Anda di panel admin atau pastikan server terkonfigurasi dengan benar."
+          error: "API Key Gemini tidak ditemukan. Silakan masukkan API Key Anda di menu Pengaturan."
         });
       }
 
@@ -41,9 +39,8 @@ async function startServer() {
       });
 
       // Call the model
-      // Use 'gemini-3.5-flash' for general text tasks as per model guidelines
       const response = await ai.models.generateContent({
-        model: 'gemini-3.5-flash',
+        model: 'gemini-2.5-flash',
         contents: prompt,
       });
 
@@ -52,9 +49,14 @@ async function startServer() {
     } catch (error: any) {
       console.error("Server Gemini API Error:", error);
       let errMsg = error.message || "Gagal menghubungkan ke layanan AI.";
-      if (error.status === 403 || error.status === 401 || (error.message && (error.message.includes("API_KEY_INVALID") || error.message.includes("API key")))) {
-        errMsg = "API Key Gemini tidak valid atau tidak memiliki akses. Silakan periksa kembali API Key Anda.";
+      
+      // Handle quota and invalid key errors
+      if (errMsg.includes("429")) {
+        errMsg = "Kuota penggunaan AI penuh (429). Gunakan API Key pribadi untuk batas yang lebih tinggi.";
+      } else if (errMsg.includes("403") || errMsg.includes("401") || errMsg.includes("API key")) {
+        errMsg = "API Key Gemini tidak valid atau tidak memiliki akses.";
       }
+
       return res.status(500).json({ error: errMsg });
     }
   });

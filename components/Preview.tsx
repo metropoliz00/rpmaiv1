@@ -17,7 +17,10 @@ interface PreviewProps {
   onGenerateLKM: () => void;
   onGenerateRubrik: () => void;
   onGenerateSoal: () => void;
+  onGenerateBulkRPM: () => void;
+  onGenerateBulkLampiran: () => void;
   isGeneratingSoal: boolean;
+  isGeneratingBulk: boolean;
 }
 
 const HeaderCol = ({ title, rowSpan = 1 }: { title: string; rowSpan?: number }) => (
@@ -133,7 +136,8 @@ export const RPMDocument: React.FC<PreviewProps> = ({
     formData, activeDocs, generatedMateriContent, 
     generatedLKMContent, generatedRubrikContent, generatedSoalContent,
     soalConfig, setSoalConfig, loaders, 
-    onGenerateMateri, onGenerateLKM, onGenerateRubrik, onGenerateSoal, isGeneratingSoal
+    onGenerateMateri, onGenerateLKM, onGenerateRubrik, onGenerateSoal, 
+    onGenerateBulkRPM, onGenerateBulkLampiran, isGeneratingSoal, isGeneratingBulk
 }) => {
 
     const getAwalMinutes = () => {
@@ -342,10 +346,7 @@ export const RPMDocument: React.FC<PreviewProps> = ({
 
             {activeDocs.paparan && (
                 <A4Page teacherName={formData.namaPenyusun} className="font-serif text-[11px] leading-snug">
-                    <div className="text-center font-bold text-lg mb-4 border-b-2 border-blue-800 pb-2 text-blue-900 font-sans uppercase">LAMPIRAN I: PAPARAN MATERI</div>
-                    <div className="print:hidden mb-4 text-center">
-                        <Button onClick={onGenerateMateri} variant="magic" isLoading={loaders['materi']} icon={Sparkles}>Generate Materi Ajar</Button>
-                    </div>
+                    <div className="text-center font-bold text-lg mb-4 border-b-2 border-blue-800 pb-2 text-blue-900 font-sans uppercase">PAPARAN MATERI</div>
                     <div className="border border-gray-300 p-8 min-h-[500px] bg-white shadow-sm rounded-lg text-inherit">
                         <h2 className="text-2xl font-bold text-center mb-6 text-blue-800 uppercase">{formData.materiPokok}</h2>
                         {generatedMateriContent ? (
@@ -362,13 +363,10 @@ export const RPMDocument: React.FC<PreviewProps> = ({
 
             {activeDocs.lkm && (
                 <A4Page teacherName={formData.namaPenyusun} className="font-serif text-[11px] leading-snug">
-                    <div className="print:hidden mb-4 text-center">
-                        <Button onClick={onGenerateLKM} variant="magic" isLoading={loaders['lkm']} icon={Sparkles}>Generate LKM dengan AI</Button>
-                    </div>
 
                     <div className="border-2 border-black p-1 mb-4">
                         <div className="border border-black p-4">
-                            <div className="text-center font-bold text-base mb-1 uppercase">LAMPIRAN II: LEMBAR KERJA MURID (LKM) KELOMPOK</div>
+                            <div className="text-center font-bold text-base mb-1 uppercase">LEMBAR KERJA MURID (LKM) KELOMPOK</div>
                             <div className="text-center font-bold text-sm mb-4 uppercase text-gray-600">
                                 {generatedLKMContent?.judul_kegiatan || `Eksplorasi ${formData.materiPokok}`}
                             </div>
@@ -439,9 +437,9 @@ export const RPMDocument: React.FC<PreviewProps> = ({
                         {/* C. Stimulus Permasalahan */}
                         <div className="border border-black p-3 relative bg-gray-50/50">
                             <div className="absolute -top-2 left-2 bg-white px-1 font-bold text-blue-900">C. Stimulus Permasalahan</div>
-                            <div className="mt-1 text-justify italic leading-relaxed text-[11px]">
+                            <div className="mt-1 text-justify italic leading-relaxed text-[11px] whitespace-pre-wrap">
                                 {generatedLKMContent?.stimulus || (
-                                    <span className="text-gray-400">Silakan klik tombol "Generate LKM dengan AI" untuk memunculkan stimulus pembelajaran yang relevan dan kontekstual.</span>
+                                    <span className="text-gray-400">Silakan klik tombol "Generate Full Lampiran" di bagian atas untuk memunculkan stimulus pembelajaran yang relevan.</span>
                                 )}
                             </div>
                         </div>
@@ -459,7 +457,7 @@ export const RPMDocument: React.FC<PreviewProps> = ({
                                         </div>
                                     ))
                                 ) : (
-                                    <p className="italic text-gray-400">Belum ada pertanyaan orientasi masalah. Generate LKM terlebih dahulu.</p>
+                                    <p className="italic text-gray-400">Belum ada pertanyaan orientasi masalah. Klik "Generate Full Lampiran" di bagian atas.</p>
                                 )}
                             </div>
                         </div>
@@ -488,7 +486,7 @@ export const RPMDocument: React.FC<PreviewProps> = ({
                                         </div>
                                     ))
                                 ) : (
-                                    <p className="italic text-gray-400">Belum ada aktivitas investigasi. Generate LKM terlebih dahulu.</p>
+                                    <p className="italic text-gray-400">Belum ada aktivitas investigasi. Klik "Generate Full Lampiran" di bagian atas.</p>
                                 )}
                             </div>
                         </div>
@@ -567,10 +565,7 @@ export const RPMDocument: React.FC<PreviewProps> = ({
 
             {activeDocs.rubrik && (
                 <A4Page teacherName={formData.namaPenyusun} className="font-serif text-[11px] leading-snug">
-                    <div className="print:hidden mb-4 text-center">
-                        <Button onClick={onGenerateRubrik} variant="magic" isLoading={loaders['rubrik']} icon={Sparkles}>Generate Rubrik AI</Button>
-                    </div>
-                    <div className="text-center font-bold text-lg mb-4 border-b-2 border-green-600 pb-2 text-green-900 font-sans uppercase">LAMPIRAN III: RUBRIK PENILAIAN</div>
+                    <div className="text-center font-bold text-lg mb-4 border-b-2 border-green-600 pb-2 text-green-900 font-sans uppercase">RUBRIK PENILAIAN</div>
                     <div className="mb-6">
                         <h3 className="font-bold text-base mb-2 text-green-800">A. Penilaian Sikap</h3>
                         <table className="w-full border border-gray-800 text-inherit mb-4">
@@ -624,45 +619,44 @@ export const RPMDocument: React.FC<PreviewProps> = ({
             )}
 
             {activeDocs.soal && (
-                <A4Page teacherName={formData.namaPenyusun} className="font-serif text-[11px] leading-snug">
-                     <div className="print:hidden mb-4 p-4 bg-blue-50 rounded border border-blue-200 font-sans">
-                        <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center mb-3 gap-2">
-                            <span className="font-bold text-blue-900 text-sm">Konfigurasi Soal</span>
-                            <Button onClick={onGenerateSoal} variant="magic" isLoading={isGeneratingSoal} icon={BrainCircuit} size="sm" className="w-full sm:w-auto">Buat Soal</Button>
-                        </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
-                            <div className="flex items-center justify-between sm:justify-start gap-1 bg-white p-2 rounded border">
-                                <span className="font-semibold text-gray-600">Pilihan Ganda (PG):</span>
-                                <input type="number" className="w-12 border rounded p-1 text-center font-bold font-sans" value={soalConfig.pg} onChange={e=>setSoalConfig({...soalConfig, pg: parseInt(e.target.value) || 0})}/>
+                <div className="print:w-full">
+                    <div className="print:hidden mb-4 p-4 bg-gray-100 rounded-lg flex flex-col items-center gap-4">
+                        <div className="font-bold text-gray-700 mb-2">Konfigurasi Soal Evaluasi</div>
+                        <div className="flex flex-wrap gap-4 items-center justify-center">
+                            <div className="flex flex-col">
+                                <label className="text-xs text-gray-600 mb-1">Pilihan Ganda (HOTS)</label>
+                                <input type="number" min="0" max="20" className="p-2 border rounded w-24 text-center" value={soalConfig.pg} onChange={e => setSoalConfig({...soalConfig, pg: parseInt(e.target.value) || 0})} />
                             </div>
-                            <div className="flex items-center justify-between sm:justify-start gap-1 bg-white p-2 rounded border">
-                                <span className="font-semibold text-gray-600">Isian:</span>
-                                <input type="number" className="w-12 border rounded p-1 text-center font-bold font-sans" value={soalConfig.isian} onChange={e=>setSoalConfig({...soalConfig, isian: parseInt(e.target.value) || 0})}/>
+                            <div className="flex flex-col">
+                                <label className="text-xs text-gray-600 mb-1">Isian Singkat</label>
+                                <input type="number" min="0" max="20" className="p-2 border rounded w-24 text-center" value={soalConfig.isian} onChange={e => setSoalConfig({...soalConfig, isian: parseInt(e.target.value) || 0})} />
                             </div>
-                            <div className="flex items-center justify-between sm:justify-start gap-1 bg-white p-2 rounded border">
-                                <span className="font-semibold text-gray-600">Uraian:</span>
-                                <input type="number" className="w-12 border rounded p-1 text-center font-bold font-sans" value={soalConfig.uraian} onChange={e=>setSoalConfig({...soalConfig, uraian: parseInt(e.target.value) || 0})}/>
+                            <div className="flex flex-col">
+                                <label className="text-xs text-gray-600 mb-1">Uraian</label>
+                                <input type="number" min="0" max="10" className="p-2 border rounded w-24 text-center" value={soalConfig.uraian} onChange={e => setSoalConfig({...soalConfig, uraian: parseInt(e.target.value) || 0})} />
                             </div>
                         </div>
+                        <Button onClick={onGenerateSoal} variant="magic" isLoading={isGeneratingSoal} icon={Sparkles}>Generate Soal Evaluasi</Button>
                     </div>
+                    <A4Page teacherName={formData.namaPenyusun} className="font-serif text-[11px] leading-snug">
+                        <div className="text-center font-bold text-lg mb-4 border-b-2 border-red-600 pb-2 text-red-900 uppercase font-sans">ASESMEN SUMATIF (SOAL EVALUASI)</div>
+                        
+                        <div className="mb-6 text-inherit">
+                             <table className="w-full">
+                                <tbody>
+                                    <tr><td className="font-bold w-24">Nama</td><td>: ............................................</td><td className="font-bold w-24 text-right">Nilai</td><td className="w-24 border border-black h-10"></td></tr>
+                                    <tr><td className="font-bold">No. Absen</td><td>: ............................................</td></tr>
+                                </tbody>
+                             </table>
+                        </div>
 
-                    <div className="text-center font-bold text-lg mb-4 border-b-2 border-red-600 pb-2 text-red-900 uppercase font-sans">LAMPIRAN IV: ASESMEN SUMATIF (SOAL EVALUASI)</div>
-                    
-                    <div className="mb-6 text-inherit">
-                         <table className="w-full">
-                            <tbody>
-                                <tr><td className="font-bold w-24">Nama</td><td>: ............................................</td><td className="font-bold w-24 text-right">Nilai</td><td className="w-24 border border-black h-10"></td></tr>
-                                <tr><td className="font-bold">No. Absen</td><td>: ............................................</td></tr>
-                            </tbody>
-                         </table>
-                    </div>
-
-                    <div className="p-6 border border-gray-300 rounded min-h-[600px] bg-white text-inherit">
-                        {generatedSoalContent ? (
-                            <div dangerouslySetInnerHTML={{__html: generatedSoalContent}} className="prose max-w-none text-inherit leading-relaxed generated-questions-list" />
-                        ) : <div className="text-gray-400 italic text-center py-20 border border-dashed rounded font-sans">Soal belum dibuat. Klik tombol Generate di atas.</div>}
-                    </div>
-                </A4Page>
+                        <div className="p-6 border border-gray-300 rounded min-h-[600px] bg-white text-inherit">
+                            {generatedSoalContent ? (
+                                <div dangerouslySetInnerHTML={{__html: generatedSoalContent}} className="prose max-w-none text-inherit leading-relaxed generated-questions-list" />
+                            ) : <div className="text-gray-400 italic text-center py-20 border border-dashed rounded font-sans">Soal belum dibuat. Sesuaikan konfigurasi dan klik tombol Generate di atas.</div>}
+                        </div>
+                    </A4Page>
+                </div>
             )}
         </div>
     </div>

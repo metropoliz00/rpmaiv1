@@ -16,6 +16,7 @@ export interface RPMData {
   lintasDisiplin: string;
   kemitraan: string;
   lingkunganBelajar: string;
+  pendekatanPembelajaran: string;
   tempat: string;
   tanggal: string;
   namaKepalaSekolah: string;
@@ -29,6 +30,10 @@ export interface RPMData {
   kegiatanAwalDurasi: number;
   kegiatanIntiDurasi: number;
   kegiatanPenutupDurasi: number;
+  materiContent?: string;
+  lkmContent?: any;
+  rubrikContent?: any;
+  soalContent?: string;
 }
 
 export const getMinutesFromAlokasi = (alokasi: string): number => {
@@ -135,6 +140,7 @@ export const initialFormData: RPMData = {
   lintasDisiplin: '',
   kemitraan: '',
   lingkunganBelajar: '',
+  pendekatanPembelajaran: '',
   tempat: '',
   tanggal: '',
   namaKepalaSekolah: '',

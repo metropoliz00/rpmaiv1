@@ -72,16 +72,14 @@ export const generateContent = async (prompt: string, userApiKey?: string | null
     if (error.message && (error.message.includes("403") || error.message.includes("401") || error.message.includes("tidak valid") || error.message.includes("tidak memiliki akses"))) {
       throw new Error("API Key Gemini tidak valid atau tidak memiliki akses. Silakan periksa kembali API Key Anda.");
     }
+    if (error.message && error.message.includes("429")) {
+      throw new Error("Kuota penggunaan AI sedang penuh (429). Silakan coba lagi beberapa saat lagi.");
+    }
     throw new Error(error.message || "Gagal menghubungkan ke layanan AI. Pastikan API Key Anda aktif.");
   }
 };
 
-export const buildPrompt = (
-  fieldName: string,
-  formData: RPMData,
-  additionalContext: string,
-  fileName?: string
-): string => {
+export const buildBulkPrompts = (type: 'rpm' | 'lampiran', formData: RPMData): string => {
   const baseContext = `
     Konteks Pembelajaran:
     - Mapel: ${formData.mataPelajaran}
@@ -89,85 +87,71 @@ export const buildPrompt = (
     - Kelas: ${formData.kelas}
     - CP: ${formData.capaianPembelajaran}
     - Model: ${formData.modelPembelajaran}
-    - Tambahan Info: ${additionalContext}
-    ${fileName ? `- Referensi File: ${fileName}` : ''}
+    - Pendekatan: ${formData.pendekatanPembelajaran}
+    - Metode: ${formData.metode}
     
     Istilah wajib: Gunakan kata "Murid" (bukan siswa/peserta didik).
   `;
 
-  let specificPrompt = "";
-
-  switch (fieldName) {
-    case 'tujuanPembelajaran':
-      specificPrompt = `
-        Buat 3 Tujuan Pembelajaran yang spesifik, terukur, dan relevan dengan CP.
-        Setiap tujuan pembelajaran HARUS dirumuskan mengikuti kaidah formula berikut secara ketat:
-        'Melalui [pendekatan, media, model, atau metode], murid dapat [kata kerja operasional Taksonomi Bloom atau Taksonomi SOLO] [materi pembelajaran] dengan [Benar, Sesuai, Tepat, dll disesuaikan dengan keadaan/materi]'.
-        Pilih salah satu (pendekatan, media, model, atau metode) yang paling pas dan relevan dengan materi untuk diletakkan di bagian awal kalimat.
-        Jika tujuan pembelajaran tersebut meminta murid untuk menyebutkan atau menjelaskan sesuatu, berikan perintah yang menyebutkan berapa jumlahnya secara spesifik (misalnya: menyebutkan minimal 3..., menjelaskan 2...).
-        PENTING: Integrasikan penggunaan media/digital "${formData.alatDigital}" atau lingkungan belajar "${formData.lingkunganBelajar}" (jika ada) secara alami ke dalam rumus kalimat tersebut agar terlihat operasional dan nyata.
-        Format: List dengan penomoran (1. ..., 2. ...). Langsung isinya saja.
+  if (type === 'rpm') {
+      return `${baseContext}
+      Buat Rencana Pelaksanaan Pembelajaran (RPM) yang komprehensif dalam format JSON:
+      {
+        "tujuanPembelajaran": "Buat 3 Tujuan Pembelajaran spesifik mengikuti rumus 'Melalui [pendekatan/metode], murid dapat [KKO] [materi] dengan [tepat]'. Gunakan daftar penomoran.",
+        "kegiatanAwal": "Buat Kegiatan Awal dengan minimal 3 poin (Apersepsi/Motivasi, dll) menggunakan **BOLD** pada kata kunci.",
+        "kegiatanInti": {
+          "memahami": "3-5 poin aktivitas murid aktif",
+          "mengaplikasikan": "3-5 poin aktivitas murid diskusi/eksperimen",
+          "merefleksi": "3-5 poin aktivitas murid menyimpulkan/refleksi"
+        },
+        "kegiatanPenutup": "Buat Kegiatan Penutup dengan minimal 3 poin menggunakan **BOLD** pada kata kunci."
+      }
       `;
-      break;
-    case 'metode':
-      specificPrompt = `Sebutkan 3 metode/strategi pembelajaran yang spesifik untuk model ${formData.modelPembelajaran}. LANGSUNG POINNYA SAJA dipisahkan koma. Jangan ada penjelasan.`;
-      break;
-    case 'lintasDisiplin':
-      specificPrompt = `Sebutkan 2 mata pelajaran lain yang relevan dari daftar berikut: PAIBP, Pendidikan Pancasila, Bahasa Indonesia, Matematika, IPAS, Seni Budaya, PJOK, Bahasa Inggris, Bahasa Jawa, KKA. LANGSUNG POINNYA SAJA dipisahkan koma. JANGAN berikan penjelasan.`;
-      break;
-    case 'kemitraan':
-      specificPrompt = `Sebutkan pihak/mitra yang bisa dilibatkan (misal: Orang Tua, Ahli). LANGSUNG POINNYA SAJA dipisahkan koma. Tanpa penjelasan.`;
-      break;
-    case 'lingkunganBelajar':
-      specificPrompt = `Sebutkan tempat belajar yang spesifik dan relevan dengan materi (misal: Di dalam kelas, Halaman sekolah, Perpustakaan). Langsung sebutkan nama tempatnya saja, dipisahkan koma. Tanpa penjelasan panjang.`;
-      break;
-    case 'alatDigital':
-      specificPrompt = `Sebutkan alat/media digital yang relevan. LANGSUNG POINNYA SAJA dipisahkan koma. Tanpa penjelasan.`;
-      break;
-    case 'kegiatanAwal':
-      specificPrompt = `
-        Buat Kegiatan Awal (Pendahuluan) yang terstruktur dan sangat rapi. Minimal 3 poin utama.
-        Poin pertama HARUS persis: "Guru mengucapkan salam, berdoa, dan mengecek kehadiran murid." dilanjutkan dengan Apersepsi.
-        Tulis langsung poin-poinnya dipisahkan oleh baris baru (newline).
-        PENTING: JANGAN tuliskan angka penomoran (1., 2.) atau tanda hubung/bullet di luar bold di awal kalimat. Tulis langsung dengan format:
-        **Apersepsi / Motivasi:** Murid...
-        Gunakan **BOLD** pada kata kunci penting di setiap poin.
+  } else {
+      return `${baseContext}
+      Buat lampiran data pelengkap untuk RPM dalam format JSON:
+      {
+        "metode": "3 metode pembelajaran, pisahkan koma.",
+        "lintasDisiplin": "2 mapel relevan, pisahkan koma.",
+        "kemitraan": "Pihak/mitra relevan, pisahkan koma.",
+        "lingkunganBelajar": "Tempat belajar relevan, pisahkan koma.",
+        "alatDigital": "Alat/media digital relevan, pisahkan koma.",
+        "materi": "Ringkasan materi pembelajaran yang esensial, padat, and jelas untuk murid dalam format HTML.",
+        "lkm": {
+          "judul_kegiatan": "Judul LKM",
+          "petunjuk_kegiatan": ["Poin 1", "Poin 2"],
+          "stimulus": "Teks stimulus masalah",
+          "orientasi_masalah": ["Tanya 1", "Tanya 2"],
+          "investigasi_aktivitas": ["Aksi 1", "Aksi 2"],
+          "analisis_berpikir_kritis": ["Tanya 1", "Tanya 2"],
+          "produk_diskusi": "Instruksi produk",
+          "panduan_presentasi": ["Poin 1", "Poin 2"]
+        },
+        "rubrik": {
+          "sikap": [{"dpl": "Sesuai Dimensi", "indikator": "Indikator sikap"}],
+          "keterampilan": ["Aspek 1", "Aspek 2"]
+        }
+      }
       `;
-      break;
-    case 'kegiatanPenutup':
-      specificPrompt = `
-        Buat Kegiatan Penutup yang terstruktur dan sangat rapi. Minimal 3 poin utama.
-        Tulis langsung poin-poinnya dipisahkan oleh baris baru (newline).
-        PENTING: JANGAN tuliskan angka penomoran (1., 2.) atau tanda hubung/bullet di luar bold di awal kalimat. Tulis langsung dengan format:
-        **Menyimpulkan Pembelajaran:** Murid bersama dengan guru membuat kesimpulan...
-        **Refleksi:** Murid melakukan refleksi terhadap jalannya proses pembelajaran...
-        **Evaluasi dan Tindak Lanjut:** Murid mengerjakan asesmen formatif...
-        
-        Gunakan **BOLD** pada kata kunci penting di setiap poin.
-      `;
-      break;
-    case 'kegiatanInti':
-       specificPrompt = `
-         Buat rincian Kegiatan Inti pembelajaran berdasarkan model ${formData.modelPembelajaran} untuk materi ${formData.materiPokok}.
-         Bagi menjadi 3 tahap spesifik dalam format JSON:
-         1. "memahami": (Syntax awal model). MURID harus aktif (mengamati/menanya), bukan guru ceramah.
-         2. "mengaplikasikan": (Syntax tengah model). Murid mencoba/diskusi/eksperimen.
-         3. "merefleksi": (Syntax akhir model). Murid menyimpulkan/presentasi.
-
-         Output JSON Wajib:
-         {
-            "memahami": "Narasi aktivitas...",
-            "mengaplikasikan": "Narasi aktivitas...",
-            "merefleksi": "Narasi aktivitas..."
-         }
-         Setiap value wajib terdiri dari 3-5 poin/langkah aktivitas murid yang dipecah menggunakan baris baru (newline atau \\n) dan diawali dengan penomoran angka (1., 2., dst) atau tanda hubung (-). 
-         Gunakan **BOLD** pada kata kunci penting.
-         Tambahkan label (Berkesadaran), (Bermakna), atau (Menggembirakan) di akhir setiap poin yang relevan.
-       `;
-       break;
-    default:
-      specificPrompt = "Buat konten yang relevan.";
   }
+};
 
-  return `${baseContext}\n\nInstruksi: ${specificPrompt}\nPastikan respons langsung ke intinya tanpa basa-basi pembuka/penutup.`;
+export const buildPrompt = (fieldName: string, formData: RPMData, additionalContext: string, fileName?: string): string => {
+    let context = `Mata Pelajaran: ${formData.mataPelajaran}, Materi: ${formData.materiPokok}, CP: ${formData.capaianPembelajaran}, Kelas: ${formData.kelas}, Model: ${formData.modelPembelajaran}.`;
+    if (additionalContext) context += `\nKonteks tambahan: ${additionalContext}`;
+    if (fileName) context += `\nReferensikan data dari file: ${fileName}`;
+
+    const prompts: Record<string, string> = {
+        tujuanPembelajaran: `Buat 3 Tujuan Pembelajaran spesifik mengikuti rumus 'Melalui [pendekatan/metode], murid dapat [KKO] [materi] dengan [tepat]'.`,
+        kegiatanAwal: `Buat Kegiatan Awal (Pendahuluan) interaktif. Gunakan kata "Murid".`,
+        kegiatanInti: `Buat Kegiatan Inti dalam format JSON: {"memahami": "...", "mengaplikasikan": "...", "merefleksi": "..."}. Sesuaikan dengan model ${formData.modelPembelajaran}.`,
+        kegiatanPenutup: `Buat Kegiatan Penutup (Refleksi) yang bermakna.`,
+        metode: `Saran 3 metode pembelajaran yang paling cocok.`,
+        lintasDisiplin: `2 Mata pelajaran yang relevan untuk diintegrasikan.`,
+        kemitraan: `Pihak luar (ortu/ahli/instansi) yang bisa diajak kerjasama.`,
+        lingkunganBelajar: `Deskripsi lingkungan belajar yang mendukung materi ini.`,
+        alatDigital: `Alat/platform digital yang menunjang pembelajaran.`
+    };
+
+    return `Bertindaklah sebagai Guru Profesional. Berdasarkan konteks berikut:\n${context}\n\nTugas: ${prompts[fieldName] || "Jelaskan tentang " + fieldName}\n\nOutput HANYA teks konten (tanpa penjelasan tambahan). Gunakan kata "Murid".`;
 };
