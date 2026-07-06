@@ -64,9 +64,10 @@ const getMuridDescription = (kelasStr: string) => {
     return "Murid dengan karakteristik beragam (Audio, Visual, Kinestetik), minat yang bervariasi.";
 };
 
-const renderListFromText = (text: string) => {
+const renderListFromText = (text: any) => {
     if (!text) return "-";
-    let cleanedText = text.replace(/<br\s*\/?>/gi, '\n');
+    const textStr = typeof text === 'string' ? text : String(text);
+    let cleanedText = textStr.replace(/<br\s*\/?>/gi, '\n');
     const lines = cleanedText.split(/\n/).filter(line => line.trim().length > 0);
     if (lines.length === 0) return "-";
     
@@ -108,9 +109,10 @@ const renderListFromText = (text: string) => {
     );
 };
 
-const renderParagraphs = (text: string) => {
+const renderParagraphs = (text: any) => {
     if (!text) return "-";
-    const lines = text.split(/\n/).filter(line => line.trim().length > 0);
+    const textStr = typeof text === 'string' ? text : String(text);
+    const lines = textStr.split(/\n/).filter(line => line.trim().length > 0);
     if (lines.length === 0) return "-";
 
     return (

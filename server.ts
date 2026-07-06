@@ -37,13 +37,51 @@ app.post("/api/gemini/generate", async (req, res) => {
       }
     });
 
-    // Call the model (Corrected to gemini-1.5-flash for stability)
-    const response = await ai.models.generateContent({
-      model: 'gemini-1.5-flash',
-      contents: prompt,
-    });
+    // Robust fallback and retry mechanism to handle temporary 503 / 429 / high-demand errors
+    let lastError: any = null;
+    let text = "";
+    const modelsToTry = ['gemini-2.5-flash', 'gemini-3.5-flash'];
 
-    const text = response.text || "Maaf, AI tidak dapat memberikan respons saat ini.";
+    for (const modelName of modelsToTry) {
+      let attempts = 3;
+      let delay = 1000;
+      while (attempts > 0) {
+        try {
+          console.log(`Trying model: ${modelName}, attempts left: ${attempts}`);
+          const response = await ai.models.generateContent({
+            model: modelName,
+            contents: prompt,
+          });
+          if (response && response.text) {
+            text = response.text;
+            break;
+          }
+        } catch (err: any) {
+          lastError = err;
+          const errMsg = err.message || "";
+          const isRateLimitOrUnavailable = 
+            errMsg.includes("503") || 
+            errMsg.includes("429") || 
+            errMsg.includes("UNAVAILABLE") || 
+            errMsg.includes("RESOURCE_EXHAUSTED");
+          
+          if (isRateLimitOrUnavailable) {
+            console.warn(`Temporary Gemini error on model ${modelName}. Retrying in ${delay}ms...`, err);
+            await new Promise(resolve => setTimeout(resolve, delay));
+            delay *= 2;
+            attempts--;
+          } else {
+            console.error(`Non-retriable error on model ${modelName}:`, err);
+            break; // Try next model in the outer list
+          }
+        }
+      }
+      if (text) break;
+    }
+
+    if (!text) {
+      throw lastError || new Error("Gagal mendapatkan respons dari semua model AI.");
+    }
     return res.json({ text });
   } catch (error: any) {
     console.error("Server Gemini API Error:", error);

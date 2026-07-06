@@ -27,10 +27,11 @@ export const getGeminiClient = (userApiKey?: string | null): GoogleGenAI => {
  * Cleans a string response that might contain Markdown code blocks
  * and attempts to parse it as JSON.
  */
-export const cleanJSON = (text: string | undefined): any => {
+export const cleanJSON = (text: any): any => {
   if (!text) return null;
   try {
-    let str = text.replace(/```json/g, '').replace(/```/g, '').trim();
+    const textStr = typeof text === 'string' ? text : String(text);
+    let str = textStr.replace(/```json/g, '').replace(/```/g, '').trim();
     const firstOpen = str.indexOf('{');
     const lastClose = str.lastIndexOf('}');
     if (firstOpen !== -1 && lastClose !== -1) {

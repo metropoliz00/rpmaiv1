@@ -258,7 +258,7 @@ export default function App() {
         5. Gunakan kata "Murid" secara konsisten untuk merujuk pada peserta belajar.
 
         Jumlah & Format Soal yang Wajib Dibuat:
-        - Pilihan Ganda (HOTS): ${soalConfig.pg} butir. Setiap soal harus didahului stimulus/kasus singkat, diikuti opsi pilihan ganda yang homogen dan logis (A, B, C, D ke bawah).
+        - Pilihan Ganda (HOTS): ${soalConfig.pg} butir. Setiap soal harus didahului stimulus/kasus singkat, diikuti opsi pilihan ganda yang homogen dan logis dengan penomoran format ABCD (A, B, C, D ke bawah). Opsi jawaban pilihan ganda WAJIB dibungkus menggunakan <ol style="list-style-type: upper-alpha;"> agar otomatis memiliki numbering format ABCD.
         - Isian Singkat (Berpikir Kritis): ${soalConfig.isian} butir. Pertanyaan yang menuntut kesimpulan logis singkat dari suatu skenario. Sediakan titik-titik (........) untuk tempat menjawab.
         - Uraian (Berpikir Analitis & Pemecahan Masalah): ${soalConfig.uraian} butir. Pertanyaan terbuka mendalam yang menuntut argumentasi ilmiah atau solusi terstruktur. Sediakan ruang jawaban yang luas berupa beberapa baris kosong.
 
@@ -266,6 +266,7 @@ export default function App() {
          - Gunakan tag <ol> untuk daftar soal di setiap kategori (Pilihan Ganda, Isian Singkat, Uraian).
          - Pastikan setiap butir soal menggunakan tag <li> agar browser memberikan nomor secara otomatis, jelas, dan rapi.
          - JANGAN menuliskan nomor manual di awal tag <li> (misalnya jangan menulis "<li>1. Stimulus..." atau "<li>1) ...") karena itu akan menyebabkan penomoran ganda (bertumpuk). Biarkan tag <ol> dan <li> menangani penomoran otomatis secara bersih.
+         - Untuk opsi pilihan ganda, gunakan tag <ol style="list-style-type: upper-alpha;"> sehingga pilihan otomatis berbentuk A, B, C, D secara rapi tanpa ditambahi tulisan manual "A. ", "B. ", dll di awal teks pilihan.
          - Output HANYA berupa kode HTML murni yang siap dirender di dalam div dangerouslySetInnerHTML (tanpa pembungkus markdown block \`\`\`html atau \`\`\`).
          - Tambahkan Kunci Jawaban di bagian paling bawah. Kunci jawaban HARUS dipisahkan dari bagian soal dengan tag <div class="print-break-before"></div> supaya kunci jawaban tercetak di halaman baru (halaman yang berbeda dari soal).
 
@@ -591,7 +592,7 @@ export default function App() {
             <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-blue-50 p-4 sm:p-8">
                 <form>
                     {step === 1 && <Step1Identitas formData={formData} setFormData={setFormData} />}
-                    {step === 2 && <Step2Konten formData={formData} setFormData={setFormData} uploadedFile={uploadedFile} setUploadedFile={setUploadedFile} additionalContext={additionalContext} setAdditionalContext={setAdditionalContext} />}
+                    {step === 2 && <Step2Konten formData={formData} setFormData={setFormData} uploadedFile={uploadedFile} setUploadedFile={setUploadedFile} additionalContext={additionalContext} setAdditionalContext={setAdditionalContext} generateField={handleGenerateField} loaders={loaders} />}
                     {step === 3 && <Step3Detail formData={formData} setFormData={setFormData} generateField={handleGenerateField} onGenerateBulkRPM={generateBulkRPM} onGenerateBulkLampiran={generateBulkLampiran} loaders={loaders} />}
                 </form>
                 <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center mt-8 pt-6 border-t border-gray-100 gap-4">

@@ -12,6 +12,7 @@ import {
   saveCredentials, 
   getSavedCredentials,
   getRegisteredUsers, 
+  saveRegisteredUsers,
   registerUser, 
   deleteUser, 
   validateUserActivation,
@@ -85,6 +86,15 @@ export const ActivationScreen: React.FC<ActivationScreenProps> = ({ onActivated 
       return;
     }
 
+    // Only query Firestore if the input resembles a complete email (contains @ and .)
+    if (!cleanEmail.includes('@') || !cleanEmail.includes('.')) {
+      setUserStatus('');
+      setIsAccountVerified(false);
+      setIsEmailRegistered(false);
+      setDetectedApiKey('');
+      return;
+    }
+
     let active = true;
     checkUserOnDb(cleanEmail).then((verified) => {
       if (!active) return;
@@ -95,6 +105,30 @@ export const ActivationScreen: React.FC<ActivationScreenProps> = ({ onActivated 
           setIsAccountVerified(true);
           setDetectedApiKey(verified.geminiApiKey);
           setActivationError(null);
+
+          // AUTO-LOGIN IF GEMINI API KEY IS ALREADY SAVED ON DATABASE
+          if (verified.geminiApiKey && verified.geminiApiKey.trim().length > 0) {
+            // Save registered user to the local cache so validation checks pass
+            const cached = getRegisteredUsers();
+            const existingIndex = cached.findIndex(u => u.email === cleanEmail);
+            if (existingIndex >= 0) {
+              cached[existingIndex] = verified;
+            } else {
+              cached.push(verified);
+            }
+            saveRegisteredUsers(cached);
+
+            // Save credentials to local storage
+            saveCredentials(cleanEmail, verified.licenseKey, verified.geminiApiKey);
+
+            // Trigger onActivated
+            setSuccessToast(`Aktivasi Otomatis Berhasil! Selamat datang, ${verified.email}`);
+            setTimeout(() => {
+              if (active) {
+                onActivated();
+              }
+            }, 1200);
+          }
         } else {
           setUserStatus('pending');
           setIsAccountVerified(false);

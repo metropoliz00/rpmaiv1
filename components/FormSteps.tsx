@@ -1,7 +1,8 @@
 import React from 'react';
-import { User, BookOpen, Layout, Upload, FilePlus, List, Loader2, Sparkles } from 'lucide-react';
+import { User, BookOpen, Layout, Upload, FilePlus, List, Loader2, Sparkles, RefreshCw } from 'lucide-react';
 import { InputGroup, SectionTitle } from './UI';
 import { RPMData, dplOptions, getDefaultDurationsForJP, adjustDurations, getMinutesFromAlokasi } from '../types';
+import { getCPBySubjectAndClass } from '../services/capaianPembelajaranService';
 
 interface StepProps {
   formData: RPMData;
@@ -13,6 +14,8 @@ interface Step2Props extends StepProps {
   setUploadedFile: (f: File | null) => void;
   additionalContext: string;
   setAdditionalContext: (s: string) => void;
+  generateField?: (field: string, target?: string) => void;
+  loaders?: Record<string, boolean>;
 }
 
 interface Step3Props extends StepProps {
@@ -45,13 +48,65 @@ export const Step1Identitas: React.FC<StepProps> = ({ formData, setFormData }) =
   );
 };
 
-export const Step2Konten: React.FC<Step2Props> = ({ formData, setFormData, uploadedFile, setUploadedFile, additionalContext, setAdditionalContext }) => {
+const digitalPresets = [
+  "Chromebook & Google Workspace",
+  "Quizizz / Kahoot",
+  "Proyektor & YouTube Video",
+  "LKPD Digital (LiveWorksheets)",
+  "Canva for Education",
+  "Simulasi Interaktif / Phet Simulation"
+];
+
+const lingkunganPresets = [
+  "Ruang Kelas (Berkelompok)",
+  "Perpustakaan Sekolah",
+  "Halaman / Lapangan Sekolah",
+  "Lingkungan Sekitar Sekolah",
+  "Laboratorium Komputer",
+  "Pojok Baca Kelas"
+];
+
+const lintasDisiplinPresets = [
+  "IPAS (Sains & Sosial)",
+  "Pendidikan Pancasila",
+  "Bahasa Indonesia (Literasi)",
+  "Matematika (Logika)",
+  "Seni (Kreativitas)",
+  "Koding & Robotika"
+];
+
+const kemitraanPresets = [
+  "Orang Tua Murid",
+  "Praktisi / Tokoh Masyarakat",
+  "Puskesmas / Dokter",
+  "Tutor Sebaya / Kakak Kelas",
+  "Komunitas Peduli Lingkungan"
+];
+
+export const Step2Konten: React.FC<Step2Props> = ({ formData, setFormData, uploadedFile, setUploadedFile, additionalContext, setAdditionalContext, generateField, loaders }) => {
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
         setUploadedFile(file);
     }
   };
+
+  React.useEffect(() => {
+    if (formData.mataPelajaran && formData.kelas) {
+      const cp = getCPBySubjectAndClass(formData.mataPelajaran, formData.kelas);
+      if (cp) {
+        setFormData(prev => {
+          if (prev.capaianPembelajaran !== cp) {
+            return {
+              ...prev,
+              capaianPembelajaran: cp
+            };
+          }
+          return prev;
+        });
+      }
+    }
+  }, [formData.mataPelajaran, formData.kelas, setFormData]);
 
   return (
     <div className="animate-fade-in-up">
@@ -178,6 +233,45 @@ const metodeOptions = [
 const pendekatanOptions = ["Kontekstual", "Saintifik", "Gamifikasi", "Kooperatif", "Problem Solving", "Lainnya"];
 
 export const Step3Detail: React.FC<Step3Props> = ({ formData, setFormData, generateField, onGenerateBulkRPM, onGenerateBulkLampiran, loaders }) => {
+    const togglePreset = (field: 'alatDigital' | 'lingkunganBelajar' | 'lintasDisiplin' | 'kemitraan', value: string) => {
+        const currentVal = formData[field] || '';
+        const items = currentVal.split(',').map(s => s.trim()).filter(Boolean);
+        
+        if (items.includes(value)) {
+            const filtered = items.filter(item => item !== value);
+            setFormData(prev => ({ ...prev, [field]: filtered.join(', ') }));
+        } else {
+            setFormData(prev => ({ ...prev, [field]: [...items, value].join(', ') }));
+        }
+    };
+
+    const renderPresetPills = (field: 'alatDigital' | 'lingkunganBelajar' | 'lintasDisiplin' | 'kemitraan', presets: string[]) => {
+        const currentVal = formData[field] || '';
+        const selectedItems = currentVal.split(',').map(s => s.trim()).filter(Boolean);
+        
+        return (
+            <div className="flex flex-wrap gap-1.5 mt-2">
+                {presets.map(preset => {
+                    const isSelected = selectedItems.includes(preset);
+                    return (
+                        <button
+                            key={preset}
+                            type="button"
+                            onClick={() => togglePreset(field, preset)}
+                            className={`px-2.5 py-1 rounded-full text-[10px] sm:text-xs font-semibold transition-all border ${
+                                isSelected 
+                                    ? 'bg-blue-50 text-blue-700 border-blue-300 ring-2 ring-blue-100' 
+                                    : 'bg-gray-50 hover:bg-gray-100 text-gray-600 border-gray-200'
+                            }`}
+                        >
+                            {isSelected ? `✓ ${preset}` : `+ ${preset}`}
+                        </button>
+                    );
+                })}
+            </div>
+        );
+    };
+
     const handleDplChange = (label: string) => {
         if (formData.dpl.includes(label)) {
             setFormData({...formData, dpl: formData.dpl.filter(d => d !== label)});
@@ -200,15 +294,52 @@ export const Step3Detail: React.FC<Step3Props> = ({ formData, setFormData, gener
         setFormData({ ...formData, metode: newList.join(', ') });
     };
 
+    const detectedCP = (formData.mataPelajaran && formData.kelas) ? getCPBySubjectAndClass(formData.mataPelajaran, formData.kelas) : '';
+    const getFase = (k: string) => {
+        if (!k) return '';
+        const cleanK = k.trim().toUpperCase();
+        if (['I', 'II', '1', '2'].includes(cleanK)) return 'A';
+        if (['III', 'IV', '3', '4'].includes(cleanK)) return 'B';
+        if (['V', 'VI', '5', '6'].includes(cleanK)) return 'C';
+        return '';
+    };
+    const currentFase = getFase(formData.kelas);
+
     return (
         <div className="animate-fade-in-up space-y-8">
             <SectionTitle title="Komponen Pembelajaran" icon={Layout} />
             
             {/* Capaian Pembelajaran */}
             <div className="p-6 bg-white border border-gray-200 rounded-xl shadow-sm">
-                <InputGroup label="Capaian Pembelajaran (CP)" subLabel="Salin CP dari kurikulum">
-                    <textarea className="w-full p-3 border border-gray-300 rounded-lg h-32" value={formData.capaianPembelajaran} onChange={(e) => setFormData({...formData, capaianPembelajaran: e.target.value})} placeholder="Masukkan capaian pembelajaran" />
-                </InputGroup>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+                    <div className="space-y-0.5">
+                        <label className="block text-sm font-bold text-gray-800">Capaian Pembelajaran (CP)</label>
+                        <p className="text-xs text-gray-500">Capaian kompetensi dasar kurikulum yang terdeteksi otomatis</p>
+                    </div>
+                    {currentFase && (
+                        <div className="flex items-center gap-2">
+                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                                📋 Terdeteksi FASE {currentFase} (Kelas {formData.kelas})
+                            </span>
+                            {detectedCP && formData.capaianPembelajaran !== detectedCP && (
+                                <button
+                                    type="button"
+                                    onClick={() => setFormData({...formData, capaianPembelajaran: detectedCP})}
+                                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 transition-all shadow-sm active:scale-95"
+                                    title="Reset ke CP resmi dari kurikulum"
+                                >
+                                    <RefreshCw size={12} className="text-amber-600" /> Reset ke CP Default
+                                </button>
+                            )}
+                        </div>
+                    )}
+                </div>
+                <textarea 
+                    className="w-full p-3.5 border border-gray-300 rounded-lg h-36 text-sm text-gray-800 placeholder-gray-400 focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500 transition-all font-sans leading-relaxed" 
+                    value={formData.capaianPembelajaran} 
+                    onChange={(e) => setFormData({...formData, capaianPembelajaran: e.target.value})} 
+                    placeholder="Masukkan atau edit capaian pembelajaran" 
+                />
             </div>
 
             {/* Model & Metode */}
@@ -264,17 +395,21 @@ export const Step3Detail: React.FC<Step3Props> = ({ formData, setFormData, gener
             
             {/* Media & Lingkungan */}
              <div className="p-6 bg-white border border-gray-200 rounded-xl shadow-sm grid grid-cols-1 md:grid-cols-2 gap-6">
-                <InputGroup label="Pemanfaatan Digital">
+                <InputGroup label="Pemanfaatan Digital" subLabel="Pilih referensi di bawah untuk mengisi cepat">
                     <input type="text" className="w-full p-3 border border-gray-300 rounded-lg" value={formData.alatDigital} onChange={(e) => setFormData({...formData, alatDigital: e.target.value})} placeholder="Masukkan media/alat digital" />
+                    {renderPresetPills('alatDigital', digitalPresets)}
                 </InputGroup>
-                <InputGroup label="Lingkungan Belajar">
+                <InputGroup label="Lingkungan Belajar" subLabel="Pilih referensi di bawah untuk mengisi cepat">
                     <input type="text" className="w-full p-3 border border-gray-300 rounded-lg" value={formData.lingkunganBelajar} onChange={(e) => setFormData({...formData, lingkunganBelajar: e.target.value})} placeholder="Masukkan deskripsi lingkungan belajar" />
+                    {renderPresetPills('lingkunganBelajar', lingkunganPresets)}
                 </InputGroup>
-                 <InputGroup label="Lintas Disiplin Ilmu">
+                 <InputGroup label="Lintas Disiplin Ilmu" subLabel="Pilih referensi di bawah untuk mengisi cepat">
                     <input type="text" className="w-full p-3 border border-gray-300 rounded-lg" value={formData.lintasDisiplin} onChange={(e) => setFormData({...formData, lintasDisiplin: e.target.value})} placeholder="Masukkan disiplin ilmu terkait" />
+                    {renderPresetPills('lintasDisiplin', lintasDisiplinPresets)}
                 </InputGroup>
-                <InputGroup label="Kemitraan">
+                <InputGroup label="Kemitraan" subLabel="Pilih referensi di bawah untuk mengisi cepat">
                     <input type="text" className="w-full p-3 border border-gray-300 rounded-lg" value={formData.kemitraan} onChange={(e) => setFormData({...formData, kemitraan: e.target.value})} placeholder="Masukkan pihak kemitraan" />
+                    {renderPresetPills('kemitraan', kemitraanPresets)}
                 </InputGroup>
             </div>
 
@@ -293,9 +428,36 @@ export const Step3Detail: React.FC<Step3Props> = ({ formData, setFormData, gener
 
             {/* Tujuan Pembelajaran Moved Here */}
             <div className="p-4 sm:p-6 bg-white border border-gray-200 rounded-xl shadow-sm">
-                <InputGroup label="Tujuan Pembelajaran" subLabel="AI akan menggunakan data Model, Media, dan Lingkungan yang telah diisi di atas untuk membuat tujuan yang relevan.">
-                    <textarea className="w-full p-3 border border-gray-300 rounded-lg h-32" value={formData.tujuanPembelajaran} onChange={(e) => setFormData({...formData, tujuanPembelajaran: e.target.value})} placeholder="Masukkan tujuan pembelajaran" />
-                </InputGroup>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+                    <div className="space-y-0.5">
+                        <label className="block text-sm font-bold text-gray-800">Tujuan Pembelajaran</label>
+                        <p className="text-xs text-gray-500">AI akan menggunakan data Model, Media, dan Lingkungan yang telah diisi di atas untuk membuat tujuan yang relevan.</p>
+                    </div>
+                    {generateField && (
+                        <button
+                            type="button"
+                            onClick={() => generateField('tujuanPembelajaran')}
+                            disabled={loaders?.['tujuanPembelajaran']}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-purple-600 hover:bg-purple-700 disabled:bg-purple-300 text-white transition-all shadow-md shadow-purple-500/10 active:scale-95 disabled:scale-100 disabled:cursor-not-allowed shrink-0"
+                        >
+                            {loaders?.['tujuanPembelajaran'] ? (
+                                <>
+                                    <Loader2 size={13} className="animate-spin" /> Menulis Tujuan...
+                                </>
+                            ) : (
+                                <>
+                                    <Sparkles size={13} className="animate-pulse" /> Generate Tujuan AI
+                                </>
+                            )}
+                        </button>
+                    )}
+                </div>
+                <textarea 
+                    className="w-full p-3.5 border border-gray-300 rounded-lg h-36 text-sm text-gray-800 placeholder-gray-400 focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500 transition-all font-sans leading-relaxed" 
+                    value={formData.tujuanPembelajaran} 
+                    onChange={(e) => setFormData({...formData, tujuanPembelajaran: e.target.value})} 
+                    placeholder="Contoh: 1. Melalui diskusi kelompok, murid dapat menjelaskan konsep... dengan tepat." 
+                />
             </div>
 
             <SectionTitle title="Langkah Pembelajaran" icon={List} />
