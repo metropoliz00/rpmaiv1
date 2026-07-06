@@ -9,6 +9,19 @@ const PORT = 3000;
 
 app.use(express.json());
 
+// Helper to clean API Key of any whitespace, wrapping single/double quotes, etc.
+function cleanApiKey(key: string | null | undefined): string {
+  if (!key) return "";
+  let cleaned = key.trim();
+  if (cleaned.startsWith('"') && cleaned.endsWith('"')) {
+    cleaned = cleaned.slice(1, -1).trim();
+  }
+  if (cleaned.startsWith("'") && cleaned.endsWith("'")) {
+    cleaned = cleaned.slice(1, -1).trim();
+  }
+  return cleaned;
+}
+
 // API Route for Gemini content generation
 app.post("/api/gemini/generate", async (req, res) => {
   try {
@@ -18,9 +31,10 @@ app.post("/api/gemini/generate", async (req, res) => {
     }
 
     // Determine the API Key to use
-    let apiKeyToUse = process.env.GEMINI_API_KEY;
-    if (userApiKey && userApiKey.trim() !== "" && !userApiKey.includes("DUMMY")) {
-      apiKeyToUse = userApiKey;
+    let apiKeyToUse = cleanApiKey(process.env.GEMINI_API_KEY);
+    const cleanedUserKey = cleanApiKey(userApiKey);
+    if (cleanedUserKey !== "" && !cleanedUserKey.includes("DUMMY")) {
+      apiKeyToUse = cleanedUserKey;
     }
 
     // Fallback: If no API key is passed but email is provided, retrieve key from Supabase
@@ -39,8 +53,8 @@ app.post("/api/gemini/generate", async (req, res) => {
           }
 
           if (data && data.gemini_api_key) {
-            const cloudKey = data.gemini_api_key;
-            if (cloudKey && cloudKey.trim() !== "" && !cloudKey.includes("DUMMY")) {
+            const cloudKey = cleanApiKey(data.gemini_api_key);
+            if (cloudKey !== "" && !cloudKey.includes("DUMMY")) {
               return cloudKey;
             }
           }
@@ -79,9 +93,9 @@ app.post("/api/gemini/generate", async (req, res) => {
     let lastError: any = null;
     let text = "";
     const modelsToTry = [
-      'gemini-2.5-flash',
+      'gemini-3.5-flash',
       'gemini-3.1-flash-lite',
-      'gemini-3.5-flash'
+      'gemini-flash-latest'
     ];
 
     for (const modelName of modelsToTry) {
@@ -137,9 +151,19 @@ app.post("/api/gemini/generate", async (req, res) => {
     
     let errMsg = error.message || "Gagal menghubungkan ke layanan AI.";
     
-    if (errMsg.includes("429")) {
+    // Parse giant JSON-stringified error from @google/genai SDK if applicable
+    if (typeof errMsg === "string" && errMsg.trim().startsWith("{")) {
+      try {
+        const parsed = JSON.parse(errMsg);
+        if (parsed.error && parsed.error.message) {
+          errMsg = parsed.error.message;
+        }
+      } catch (jsonErr) {}
+    }
+    
+    if (errMsg.includes("429") || errMsg.includes("RESOURCE_EXHAUSTED") || errMsg.includes("quota")) {
       errMsg = "Kuota penggunaan AI penuh (429). Gunakan API Key pribadi untuk batas yang lebih tinggi.";
-    } else if (errMsg.includes("403") || errMsg.includes("401") || errMsg.includes("API key")) {
+    } else if (errMsg.includes("403") || errMsg.includes("401") || errMsg.includes("API key not valid") || errMsg.includes("INVALID_ARGUMENT") || errMsg.includes("invalid key")) {
       errMsg = "API Key Gemini tidak valid atau tidak memiliki akses.";
     }
     return res.status(500).json({ error: errMsg });

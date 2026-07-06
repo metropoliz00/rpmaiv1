@@ -617,7 +617,7 @@ export const ActivationScreen: React.FC<ActivationScreenProps> = ({ onActivated 
                             <button
                               onClick={() => {
                                 setEmail(user.email);
-                                setToken(user.licenseKey);
+                                setUserGeminiKey(user.geminiApiKey || '');
                                 setViewMode('user');
                                 setSuccessToast("Kredensial disalin ke Form login!");
                                 setTimeout(() => setSuccessToast(null), 2500);
