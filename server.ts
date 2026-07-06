@@ -90,6 +90,9 @@ app.post("/api/gemini/generate", async (req, res) => {
     });
 
     console.log(`Using API Key (first 4): ${apiKeyToUse.substring(0, 4)}`);
+    try {
+      fs.appendFileSync("error_log.txt", `[${new Date().toISOString()}] Using API Key (first 4): ${apiKeyToUse.substring(0, 4)}\n`);
+    } catch (fileErr) {}
     
     // Robust fallback and retry mechanism to handle temporary 503 / 429 / high-demand errors
     let lastError: any = null;
