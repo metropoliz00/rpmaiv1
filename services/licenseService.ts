@@ -2,8 +2,8 @@
  * License & Activation Service for RPM Generator Pro
  * Provides deterministic offline license key generation, validation, and storage.
  */
-import { collection, getDocs, doc, setDoc, deleteDoc, getDoc } from 'firebase/firestore';
-import { db } from './firebase';
+import { supabase, isSupabaseConfigured } from './supabase';
+
 
 // A secure, application-specific salt to make the activation token deterministic but un-guessable without the formula
 const LICENSE_SALT = "RPM-GENERATOR-PRO-SECURE-SALT-2026";
@@ -140,18 +140,46 @@ export const deleteUser = (email: string): void => {
   saveRegisteredUsers(users);
 };
 
+// Map DB row to RegisteredUser
+const mapToRegisteredUser = (row: any): RegisteredUser => {
+  return {
+    email: row.email,
+    geminiApiKey: row.gemini_api_key,
+    licenseKey: row.license_key,
+    isActive: row.is_active,
+    createdAt: row.created_at
+  };
+};
+
+// Map RegisteredUser to DB row
+const mapToDbRow = (user: RegisteredUser) => {
+  return {
+    email: user.email,
+    gemini_api_key: user.geminiApiKey,
+    license_key: user.licenseKey,
+    is_active: user.isActive,
+    created_at: user.createdAt
+  };
+};
+
 /**
- * Gets the list of registered users from the Firestore database.
+ * Gets the list of registered users from the Supabase database.
  * Caches them in localStorage on success.
  */
 export const getRegisteredUsersFromDb = async (): Promise<RegisteredUser[]> => {
+  if (!isSupabaseConfigured()) {
+    return getRegisteredUsers();
+  }
+
   try {
-    const colRef = collection(db, 'users');
-    const querySnapshot = await getDocs(colRef);
-    const users: RegisteredUser[] = [];
-    querySnapshot.forEach((doc) => {
-      users.push(doc.data() as RegisteredUser);
-    });
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    const users = (data || []).map(mapToRegisteredUser);
     saveRegisteredUsers(users);
     return users;
   } catch (e) {
@@ -161,19 +189,27 @@ export const getRegisteredUsersFromDb = async (): Promise<RegisteredUser[]> => {
 };
 
 /**
- * Registers or updates a user in the Firestore database.
+ * Registers or updates a user in the Supabase database.
  * Automatically generates the license key.
  */
 export const registerUserOnDb = async (email: string, geminiApiKey: string, isActive: boolean = true): Promise<RegisteredUser> => {
+  if (!isSupabaseConfigured()) {
+    return registerUser(email, geminiApiKey, isActive);
+  }
+
   const cleanEmail = email.trim().toLowerCase();
   const licenseKey = generateLicenseKey(cleanEmail);
   
   let createdAt = new Date().toISOString();
   try {
-    const userDocRef = doc(db, 'users', cleanEmail);
-    const docSnap = await getDoc(userDocRef);
-    if (docSnap.exists()) {
-      createdAt = docSnap.data().createdAt || createdAt;
+    const { data: existing, error } = await supabase
+      .from('users')
+      .select('created_at')
+      .eq('email', cleanEmail)
+      .maybeSingle();
+
+    if (existing && !error) {
+      createdAt = existing.created_at;
     }
   } catch (e) {
     console.error("Error checking existing user in DB:", e);
@@ -188,8 +224,11 @@ export const registerUserOnDb = async (email: string, geminiApiKey: string, isAc
   };
 
   try {
-    const docRef = doc(db, 'users', cleanEmail);
-    await setDoc(docRef, newUser);
+    const { error } = await supabase
+      .from('users')
+      .upsert(mapToDbRow(newUser));
+
+    if (error) throw error;
     
     // Sync cache
     const cached = getRegisteredUsers();
@@ -208,12 +247,28 @@ export const registerUserOnDb = async (email: string, geminiApiKey: string, isAc
 };
 
 /**
- * Deletes a registered user from the Firestore database.
+ * Updates a user's Gemini Key in the Supabase database.
  */
 export const updateUserGeminiKeyOnDb = async (email: string, geminiApiKey: string): Promise<void> => {
   const cleanEmail = email.trim().toLowerCase();
+  
+  if (!isSupabaseConfigured()) {
+    const cached = getRegisteredUsers();
+    const existingIndex = cached.findIndex(u => u.email === cleanEmail);
+    if (existingIndex >= 0) {
+      cached[existingIndex].geminiApiKey = geminiApiKey;
+      saveRegisteredUsers(cached);
+    }
+    return;
+  }
+
   try {
-    await setDoc(doc(db, 'users', cleanEmail), { geminiApiKey }, { merge: true });
+    const { error } = await supabase
+      .from('users')
+      .update({ gemini_api_key: geminiApiKey })
+      .eq('email', cleanEmail);
+
+    if (error) throw error;
     
     // Sync cache
     const cached = getRegisteredUsers();
@@ -228,12 +283,22 @@ export const updateUserGeminiKeyOnDb = async (email: string, geminiApiKey: strin
 };
 
 /**
- * Deletes a registered user from the Firestore database.
+ * Deletes a registered user from the Supabase database.
  */
 export const deleteUserFromDb = async (email: string): Promise<void> => {
+  if (!isSupabaseConfigured()) {
+    deleteUser(email);
+    return;
+  }
+
   const cleanEmail = email.trim().toLowerCase();
   try {
-    await deleteDoc(doc(db, 'users', cleanEmail));
+    const { error } = await supabase
+      .from('users')
+      .delete()
+      .eq('email', cleanEmail);
+
+    if (error) throw error;
     
     // Sync cache
     const cached = getRegisteredUsers().filter(u => u.email !== cleanEmail);
@@ -244,16 +309,27 @@ export const deleteUserFromDb = async (email: string): Promise<void> => {
 };
 
 /**
- * Checks a specific user's status directly from the Firestore database.
+ * Checks a specific user's status directly from the Supabase database.
  */
 export const checkUserOnDb = async (email: string): Promise<RegisteredUser | null> => {
   const cleanEmail = email.trim().toLowerCase();
   if (!cleanEmail) return null;
+
+  if (!isSupabaseConfigured()) {
+    const cached = getRegisteredUsers();
+    return cached.find(u => u.email === cleanEmail) || null;
+  }
+
   try {
-    const docRef = doc(db, 'users', cleanEmail);
-    const docSnap = await getDoc(docRef);
-    if (docSnap.exists()) {
-      return docSnap.data() as RegisteredUser;
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('email', cleanEmail)
+      .maybeSingle();
+
+    if (error) throw error;
+    if (data) {
+      return mapToRegisteredUser(data);
     }
   } catch (e) {
     console.error("Error fetching user from DB:", e);
@@ -265,6 +341,10 @@ export const checkUserOnDb = async (email: string): Promise<RegisteredUser | nul
  * Validates if the email and license key are registered and active in the database.
  */
 export const validateUserActivationFromDb = async (email: string, licenseKey: string): Promise<RegisteredUser | null> => {
+  if (!isSupabaseConfigured()) {
+    return validateUserActivation(email, licenseKey);
+  }
+
   const cleanEmail = email.trim().toLowerCase();
   const cleanKey = licenseKey.trim().toUpperCase();
   
@@ -322,4 +402,3 @@ export const clearCredentials = (): void => {
   localStorage.removeItem("user_gemini_api_key");
   localStorage.setItem("rpm_user_deactivated", "true");
 };
-

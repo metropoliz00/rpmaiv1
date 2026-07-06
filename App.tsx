@@ -11,9 +11,7 @@ import { Button } from './components/UI';
 import { initialFormData, RPMData, RubrikData, LKMData } from './types';
 import { generateContent, cleanJSON, buildBulkPrompts, buildPrompt } from './services/geminiService';
 import { ActivationScreen } from './components/ActivationScreen';
-import { checkIsActivated, clearCredentials, getSavedCredentials, saveCredentials } from './services/licenseService';
-import { db } from './services/firebase';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { checkIsActivated, clearCredentials, getSavedCredentials, saveCredentials, checkUserOnDb, updateUserGeminiKeyOnDb } from './services/licenseService';
 
 export default function App() {
   const [isActivated, setIsActivated] = useState(checkIsActivated());
@@ -33,16 +31,16 @@ export default function App() {
   const [showApiKey, setShowApiKey] = useState(false);
   const [userGeminiKey, setUserGeminiKey] = useState(localStorage.getItem('user_gemini_api_key') || '');
 
-  // Load Gemini Key from Firestore on activation
+  // Load Gemini Key from DB on activation
   React.useEffect(() => {
     const loadUserKey = async () => {
       if (isActivated) {
         const creds = getSavedCredentials();
         if (creds && creds.email) {
           try {
-            const userDoc = await getDoc(doc(db, 'users', creds.email));
-            if (userDoc.exists() && userDoc.data().geminiApiKey) {
-              const cloudKey = userDoc.data().geminiApiKey;
+            const user = await checkUserOnDb(creds.email);
+            if (user && user.geminiApiKey) {
+              const cloudKey = user.geminiApiKey;
               setUserGeminiKey(cloudKey);
               localStorage.setItem('user_gemini_api_key', cloudKey);
             }
@@ -803,11 +801,11 @@ export default function App() {
                              localStorage.removeItem('user_gemini_api_key');
                          } else {
                              localStorage.setItem('user_gemini_api_key', userGeminiKey);
-                             // Save to Firestore if activated
+                             // Save to DB if activated
                              const creds = getSavedCredentials();
                              if (creds && creds.email) {
                                  try {
-                                     await setDoc(doc(db, 'users', creds.email), { geminiApiKey: userGeminiKey }, { merge: true });
+                                     await updateUserGeminiKeyOnDb(creds.email, userGeminiKey);
                                  } catch (e) { console.error("Gagal simpan ke cloud:", e); }
                              }
                          }

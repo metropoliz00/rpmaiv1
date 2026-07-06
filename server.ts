@@ -2,8 +2,7 @@ import express from "express";
 import path from "path";
 import fs from "fs";
 import { GoogleGenAI } from "@google/genai";
-import { doc, getDoc } from "firebase/firestore";
-import { db } from "./services/firebase";
+import { supabase } from "./services/supabase";
 
 const app = express();
 const PORT = 3000;
@@ -24,14 +23,23 @@ app.post("/api/gemini/generate", async (req, res) => {
       apiKeyToUse = userApiKey;
     }
 
-    // Fallback: If no API key is passed but email is provided, retrieve key from Firestore
+    // Fallback: If no API key is passed but email is provided, retrieve key from Supabase
     if ((!apiKeyToUse || apiKeyToUse.trim() === "") && email) {
       try {
         const fetchPromise = (async () => {
-          const userDocRef = doc(db, 'users', email.trim().toLowerCase());
-          const userDocSnap = await getDoc(userDocRef);
-          if (userDocSnap.exists()) {
-            const cloudKey = userDocSnap.data().geminiApiKey;
+          const { data, error } = await supabase
+            .from('users')
+            .select('gemini_api_key')
+            .eq('email', email.trim().toLowerCase())
+            .maybeSingle();
+
+          if (error) {
+            console.error("Supabase query error:", error);
+            return null;
+          }
+
+          if (data && data.gemini_api_key) {
+            const cloudKey = data.gemini_api_key;
             if (cloudKey && cloudKey.trim() !== "" && !cloudKey.includes("DUMMY")) {
               return cloudKey;
             }
@@ -48,7 +56,7 @@ app.post("/api/gemini/generate", async (req, res) => {
           apiKeyToUse = cloudKey;
         }
       } catch (dbErr) {
-        console.error("Failed to fetch API key from Firestore in backend:", dbErr);
+        console.error("Failed to fetch API key from Supabase in backend:", dbErr);
       }
     }
 

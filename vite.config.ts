@@ -7,6 +7,7 @@ export default defineConfig(({ mode }) => {
     return {
       server: {
         host: true,
+        hmr: false,
       },
       plugins: [react()],
       define: {
