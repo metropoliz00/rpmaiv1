@@ -210,6 +210,26 @@ export const registerUserOnDb = async (email: string, geminiApiKey: string, isAc
 /**
  * Deletes a registered user from the Firestore database.
  */
+export const updateUserGeminiKeyOnDb = async (email: string, geminiApiKey: string): Promise<void> => {
+  const cleanEmail = email.trim().toLowerCase();
+  try {
+    await setDoc(doc(db, 'users', cleanEmail), { geminiApiKey }, { merge: true });
+    
+    // Sync cache
+    const cached = getRegisteredUsers();
+    const existingIndex = cached.findIndex(u => u.email === cleanEmail);
+    if (existingIndex >= 0) {
+      cached[existingIndex].geminiApiKey = geminiApiKey;
+      saveRegisteredUsers(cached);
+    }
+  } catch (e) {
+    console.error("Error updating user Gemini Key in DB:", e);
+  }
+};
+
+/**
+ * Deletes a registered user from the Firestore database.
+ */
 export const deleteUserFromDb = async (email: string): Promise<void> => {
   const cleanEmail = email.trim().toLowerCase();
   try {

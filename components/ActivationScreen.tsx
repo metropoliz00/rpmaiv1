@@ -20,7 +20,8 @@ import {
   registerUserOnDb,
   deleteUserFromDb,
   checkUserOnDb,
-  validateUserActivationFromDb
+  validateUserActivationFromDb,
+  updateUserGeminiKeyOnDb
 } from '../services/licenseService';
 import { getAdminPassword, updateAdminPassword } from '../services/adminService';
 
@@ -35,10 +36,12 @@ export const ActivationScreen: React.FC<ActivationScreenProps> = ({ onActivated 
 
   // Activation form states - initially blank placeholders as requested
   const [email, setEmail] = useState('');
-  const [token, setToken] = useState('');
+  const [userGeminiKey, setUserGeminiKey] = useState('');
   const [detectedApiKey, setDetectedApiKey] = useState('');
   const [isAccountVerified, setIsAccountVerified] = useState(false);
   const [isEmailRegistered, setIsEmailRegistered] = useState(false);
+  const [userStatus, setUserStatus] = useState<'not_found' | 'pending' | 'active' | ''>('');
+  const [showRegistrationPopup, setShowRegistrationPopup] = useState(false);
   const [activationError, setActivationError] = useState<string | null>(null);
 
   // Admin Authorization & Database States
@@ -71,10 +74,11 @@ export const ActivationScreen: React.FC<ActivationScreenProps> = ({ onActivated 
     getAdminPassword().then(setDbAdminPassword);
   }, [viewMode]);
 
-  // Detect registered user and check token
+  // Detect registered user
   useEffect(() => {
     const cleanEmail = email.trim().toLowerCase();
     if (!cleanEmail) {
+      setUserStatus('');
       setIsAccountVerified(false);
       setIsEmailRegistered(false);
       setDetectedApiKey('');
@@ -84,18 +88,20 @@ export const ActivationScreen: React.FC<ActivationScreenProps> = ({ onActivated 
     let active = true;
     checkUserOnDb(cleanEmail).then((verified) => {
       if (!active) return;
-      if (verified && verified.isActive) {
+      if (verified) {
         setIsEmailRegistered(true);
-        const cleanToken = token.trim().toUpperCase();
-        if (cleanToken === verified.licenseKey.trim().toUpperCase()) {
+        if (verified.isActive) {
+          setUserStatus('active');
           setIsAccountVerified(true);
           setDetectedApiKey(verified.geminiApiKey);
           setActivationError(null);
         } else {
+          setUserStatus('pending');
           setIsAccountVerified(false);
           setDetectedApiKey('');
         }
       } else {
+        setUserStatus('not_found');
         setIsEmailRegistered(false);
         setIsAccountVerified(false);
         setDetectedApiKey('');
@@ -107,38 +113,61 @@ export const ActivationScreen: React.FC<ActivationScreenProps> = ({ onActivated 
     return () => {
       active = false;
     };
-  }, [email, token]);
+  }, [email]);
 
   const handleActivate = async (e: React.FormEvent) => {
     e.preventDefault();
     setActivationError(null);
 
     const cleanEmail = email.trim();
-    const cleanToken = token.trim();
 
     if (!cleanEmail) {
       setActivationError("Email Pengguna wajib diisi.");
       return;
     }
-    if (!cleanToken) {
-      setActivationError("Token Aktivasi wajib diisi.");
+    const cleanUserKey = userGeminiKey.trim();
+    if (!cleanUserKey) {
+      setActivationError("API Key Gemini wajib diisi.");
       return;
     }
 
-    // Verify against the registered users database
-    const verifiedUser = await validateUserActivationFromDb(cleanEmail, cleanToken);
-    if (!verifiedUser) {
-      setActivationError("Akun tidak ditemukan, tidak aktif, atau Token Aktivasi tidak valid. Silakan hubungi Admin.");
+    // Verify against the registered users system
+    const verifiedUser = await checkUserOnDb(cleanEmail);
+    if (!verifiedUser || !verifiedUser.isActive) {
+      setActivationError("Akun tidak ditemukan atau belum aktif. Silakan hubungi Admin.");
       return;
     }
 
-    // Save credentials
-    saveCredentials(cleanEmail, cleanToken, verifiedUser.geminiApiKey);
+    if (cleanUserKey) {
+      await updateUserGeminiKeyOnDb(cleanEmail, cleanUserKey);
+      verifiedUser.geminiApiKey = cleanUserKey;
+    }
+
+    // Save credentials (using dummy token since it's no longer used for login)
+    saveCredentials(cleanEmail, "NO_TOKEN", verifiedUser.geminiApiKey);
     
     setSuccessToast(`Aktivasi Berhasil! Selamat datang, ${verifiedUser.email}`);
     setTimeout(() => {
       onActivated();
     }, 1500);
+  };
+
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setActivationError(null);
+    const cleanEmail = email.trim();
+    if (!cleanEmail) {
+      setActivationError("Email Pengguna wajib diisi.");
+      return;
+    }
+    
+    try {
+      await registerUserOnDb(cleanEmail, "", false);
+      setShowRegistrationPopup(true);
+    } catch (err) {
+      console.error(err);
+      setActivationError("Gagal melakukan registrasi.");
+    }
   };
 
   const handleAdminLogin = (e: React.FormEvent) => {
@@ -249,7 +278,7 @@ export const ActivationScreen: React.FC<ActivationScreenProps> = ({ onActivated 
               </div>
               <div>
                 <h2 className="text-xl font-bold text-slate-900 font-sans">Aktivasi Aplikasi</h2>
-                <p className="text-xs text-slate-500">Masukkan email dan token terdaftar Anda.</p>
+                <p className="text-xs text-slate-500">Masukkan email terdaftar Anda.</p>
               </div>
             </div>
 
@@ -260,39 +289,27 @@ export const ActivationScreen: React.FC<ActivationScreenProps> = ({ onActivated 
               </div>
             )}
 
-            {isAccountVerified ? (
+            {userStatus === 'active' ? (
               <div className="mb-6 p-4 bg-emerald-50 border border-emerald-100 rounded-xl text-emerald-800 text-xs flex flex-col gap-1.5 shadow-sm animate-fade-in">
                 <div className="flex items-center gap-2 text-emerald-600">
                   <CheckCircle2 size={16} />
-                  <span className="font-bold">Status: Akun Terdaftar Aktif</span>
+                  <span className="font-bold">Email valid dan aktif!</span>
                 </div>
                 <p className="text-slate-600 font-medium">
-                  Email dan token Anda berhasil terverifikasi. Silakan klik tombol di bawah untuk mengaktifkan dan membuka aplikasi.
+                  Email Anda berhasil terverifikasi. Silakan klik tombol di bawah untuk mengaktifkan dan membuka aplikasi.
                 </p>
               </div>
-            ) : isEmailRegistered ? (
-              <div className="mb-6 p-4 bg-blue-50 border border-blue-100 rounded-xl text-blue-800 text-xs flex items-start gap-2.5 animate-fade-in">
-                <Sparkles size={16} className="shrink-0 text-blue-600 mt-0.5" />
+            ) : userStatus === 'pending' ? (
+              <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-xs flex items-start gap-2.5 animate-fade-in">
+                <AlertTriangle size={16} className="shrink-0 text-amber-600 mt-0.5" />
                 <div className="leading-relaxed">
-                  <p className="font-semibold text-blue-600">Email Anda terdaftar dan aktif!</p>
-                  <p className="text-slate-600 mt-1 font-medium">
-                    Silakan masukkan Token Aktivasi Anda pada kolom di bawah untuk mengaktifkan aplikasi.
-                  </p>
+                  <p className="font-semibold text-amber-600">Email yang sudah masuk sistem menunggu diaktifkan oleh admin.</p>
+                  <p className="text-slate-600 mt-1 text-[11px] font-mono font-medium">WhatsApp: 085604431706</p>
                 </div>
               </div>
-            ) : (
-              email && (
-                <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-xs flex items-start gap-2.5 animate-fade-in">
-                  <AlertTriangle size={16} className="shrink-0 text-amber-600 mt-0.5" />
-                  <div className="leading-relaxed">
-                    <p className="font-semibold text-amber-600">Email anda belum aktif, Silahkan hubungi pengembang!</p>
-                    <p className="text-slate-600 mt-1 text-[11px] font-mono font-medium">WhatsApp: 085704431706</p>
-                  </div>
-                </div>
-              )
-            )}
+            ) : null}
 
-            <form onSubmit={handleActivate} className="space-y-5">
+            <form onSubmit={userStatus === 'not_found' ? handleRegister : handleActivate} className="space-y-5">
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5 flex items-center gap-2">
                   <Mail size={14} className="text-slate-500" /> Email Pengguna
@@ -307,27 +324,39 @@ export const ActivationScreen: React.FC<ActivationScreenProps> = ({ onActivated 
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5 flex items-center gap-2">
-                  <Key size={14} className="text-slate-500" /> Token Aktivasi
-                </label>
-                <input 
-                  type="text"
-                  value={token}
-                  onChange={(e) => setToken(e.target.value)}
-                  placeholder="Masukkan Token Aktivasi"
-                  className="w-full bg-slate-50/50 border border-slate-200 rounded-xl px-4 py-3 font-mono text-blue-600 placeholder-slate-400 focus:bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 transition-all text-sm uppercase shadow-sm"
-                  required
-                />
-              </div>
+              {userStatus !== 'not_found' && userStatus !== 'pending' && (
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5 flex items-center gap-2">
+                    <Key size={14} className="text-slate-500" /> API Key Gemini
+                  </label>
+                  <input 
+                    type="password"
+                    value={userGeminiKey}
+                    onChange={(e) => setUserGeminiKey(e.target.value)}
+                    placeholder="Masukkan API Key Gemini Anda"
+                    className="w-full bg-slate-50/50 border border-slate-200 rounded-xl px-4 py-3 text-slate-900 placeholder-slate-400 focus:bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 transition-all text-sm shadow-sm"
+                    required
+                  />
+                  <p className="text-[10px] text-slate-500 mt-1.5 italic">
+                    Dapatkan API Key di <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Google AI Studio</a>. API Key akan disimpan di sistem.
+                  </p>
+                </div>
+              )}
 
               <button
                 type="submit"
-                className={`w-full mt-6 bg-gradient-to-r ${isAccountVerified ? 'from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 border-blue-800' : 'from-slate-100 to-slate-200 border-slate-300 text-slate-400 cursor-not-allowed'} border-b-4 active:border-b-0 active:translate-y-1 transition-all rounded-xl py-3.5 font-bold ${isAccountVerified ? 'text-white shadow-lg shadow-blue-500/10' : 'text-slate-400'} flex items-center justify-center gap-2`}
-                disabled={!isAccountVerified}
+                className={`w-full mt-6 bg-gradient-to-r ${(userStatus === 'active' || userStatus === 'not_found') ? 'from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 border-blue-800' : 'from-slate-100 to-slate-200 border-slate-300 text-slate-400 cursor-not-allowed'} border-b-4 active:border-b-0 active:translate-y-1 transition-all rounded-xl py-3.5 font-bold ${(userStatus === 'active' || userStatus === 'not_found') ? 'text-white shadow-lg shadow-blue-500/10' : 'text-slate-400'} flex items-center justify-center gap-2`}
+                disabled={userStatus === 'pending' || email.trim() === ''}
               >
-                <Key size={18} />
-                Aktifkan & Buka Aplikasi
+                {userStatus === 'not_found' ? (
+                  <>
+                    <UserPlus size={18} /> Registrasi Email
+                  </>
+                ) : (
+                  <>
+                    <Key size={18} /> Aktifkan & Buka Aplikasi
+                  </>
+                )}
               </button>
             </form>
           </div>
@@ -625,7 +654,7 @@ export const ActivationScreen: React.FC<ActivationScreenProps> = ({ onActivated 
               <div className="flex justify-between items-center">
                 <span className="text-slate-500">WhatsApp:</span>
                 <span className="text-right font-mono font-bold text-emerald-600 flex items-center gap-1">
-                  <MessageCircle size={14} /> 085704431706
+                  <MessageCircle size={14} /> 085604431706
                 </span>
               </div>
               <div className="flex justify-between items-center">
@@ -673,6 +702,45 @@ export const ActivationScreen: React.FC<ActivationScreenProps> = ({ onActivated 
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-green-500 text-slate-900 font-bold px-6 py-3 rounded-xl shadow-2xl flex items-center gap-2 animate-fade-in z-50 border border-green-400">
           <Check size={18} />
           <span className="text-sm">{successToast}</span>
+        </div>
+      )}
+      {/* Registration Popup Modal */}
+      {showRegistrationPopup && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-white rounded-2xl p-6 md:p-8 max-w-sm w-full shadow-2xl relative border border-slate-200">
+            <button 
+              onClick={() => setShowRegistrationPopup(false)}
+              className="absolute top-4 right-4 p-1.5 bg-slate-50 hover:bg-slate-100 text-slate-500 rounded-full transition-colors border border-slate-200"
+            >
+              <X size={16} />
+            </button>
+            <div className="text-center">
+              <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 border-2 border-blue-100">
+                <CheckCircle2 size={32} />
+              </div>
+              <h3 className="text-xl font-bold text-slate-900 mb-2 font-sans">Terima kasih</h3>
+              <p className="text-sm text-slate-600 leading-relaxed mb-4">
+                Anda sudah registrasi Email <span className="font-bold text-blue-700 bg-blue-50 px-1 py-0.5 rounded">{email}</span>
+              </p>
+              <div className="bg-amber-50 border border-amber-100 rounded-xl p-3 mb-5">
+                <p className="text-xs text-amber-800 font-medium">
+                  Silahkan tunggu verifikasi admin...
+                </p>
+              </div>
+              <p className="text-xs text-slate-500 font-medium">
+                Hubungi <span className="font-mono text-emerald-600 font-bold bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100">085604431706</span>
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                setShowRegistrationPopup(false);
+                setUserStatus('pending');
+              }}
+              className="w-full mt-6 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl py-3 transition-colors text-sm shadow-sm"
+            >
+              Tutup
+            </button>
+          </div>
         </div>
       )}
     </div>

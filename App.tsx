@@ -694,7 +694,7 @@ export default function App() {
                             <MessageCircle size={18} className="text-green-500 mt-0.5 shrink-0" />
                             <div>
                                 <p className="font-semibold text-gray-700">WhatsApp</p>
-                                <p className="text-gray-500 font-mono font-bold">085704431706</p>
+                                <p className="text-gray-500 font-mono font-bold">085604431706</p>
                             </div>
                         </div>
                     </div>
