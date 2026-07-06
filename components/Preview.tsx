@@ -234,6 +234,7 @@ export const RPMDocument: React.FC<PreviewProps> = ({
                                             <tr className="border-b border-black">
                                                 <td className="p-2 font-semibold bg-gray-50 text-gray-700 shadow-inner align-top border-r border-black">Praktik Pedagogis</td>
                                                 <td className="p-2 align-top">
+                                                    <div className="mb-1 text-gray-800"><strong className="text-blue-900 font-bold">Pendekatan pembelajaran:</strong> {formData.pendekatanPembelajaran || "-"}</div>
                                                     <div className="mb-1 text-gray-800"><strong className="text-blue-900 font-bold">Model pembelajaran:</strong> {formData.modelPembelajaran || "-"}</div>
                                                     <div className="text-gray-800"><strong className="text-blue-900 font-bold">Metode pembelajaran:</strong> {formData.metode || "-"}</div>
                                                 </td>
