@@ -89,13 +89,14 @@ app.post("/api/gemini/generate", async (req, res) => {
       }
     });
 
+    console.log(`Using API Key (first 4): ${apiKeyToUse.substring(0, 4)}`);
+    
     // Robust fallback and retry mechanism to handle temporary 503 / 429 / high-demand errors
     let lastError: any = null;
     let text = "";
     const modelsToTry = [
-      'gemini-3.5-flash',
-      'gemini-3.1-flash-lite',
-      'gemini-flash-latest'
+      'gemini-1.5-flash',
+      'gemini-1.5-pro'
     ];
 
     for (const modelName of modelsToTry) {
