@@ -2,6 +2,8 @@
  * License & Activation Service for RPM Generator Pro
  * Provides deterministic offline license key generation, validation, and storage.
  */
+import { collection, getDocs, doc, setDoc, deleteDoc, getDoc } from 'firebase/firestore';
+import { db } from './firebase';
 
 // A secure, application-specific salt to make the activation token deterministic but un-guessable without the formula
 const LICENSE_SALT = "RPM-GENERATOR-PRO-SECURE-SALT-2026";
@@ -136,6 +138,130 @@ export const deleteUser = (email: string): void => {
   const cleanEmail = email.trim().toLowerCase();
   const users = getRegisteredUsers().filter(u => u.email !== cleanEmail);
   saveRegisteredUsers(users);
+};
+
+/**
+ * Gets the list of registered users from the Firestore database.
+ * Caches them in localStorage on success.
+ */
+export const getRegisteredUsersFromDb = async (): Promise<RegisteredUser[]> => {
+  try {
+    const colRef = collection(db, 'users');
+    const querySnapshot = await getDocs(colRef);
+    const users: RegisteredUser[] = [];
+    querySnapshot.forEach((doc) => {
+      users.push(doc.data() as RegisteredUser);
+    });
+    saveRegisteredUsers(users);
+    return users;
+  } catch (e) {
+    console.error("Error fetching registered users from DB:", e);
+    return getRegisteredUsers(); // Fallback to cache
+  }
+};
+
+/**
+ * Registers or updates a user in the Firestore database.
+ * Automatically generates the license key.
+ */
+export const registerUserOnDb = async (email: string, geminiApiKey: string, isActive: boolean = true): Promise<RegisteredUser> => {
+  const cleanEmail = email.trim().toLowerCase();
+  const licenseKey = generateLicenseKey(cleanEmail);
+  
+  let createdAt = new Date().toISOString();
+  try {
+    const userDocRef = doc(db, 'users', cleanEmail);
+    const docSnap = await getDoc(userDocRef);
+    if (docSnap.exists()) {
+      createdAt = docSnap.data().createdAt || createdAt;
+    }
+  } catch (e) {
+    console.error("Error checking existing user in DB:", e);
+  }
+
+  const newUser: RegisteredUser = {
+    email: cleanEmail,
+    geminiApiKey: geminiApiKey.trim(),
+    licenseKey,
+    isActive,
+    createdAt
+  };
+
+  try {
+    const docRef = doc(db, 'users', cleanEmail);
+    await setDoc(docRef, newUser);
+    
+    // Sync cache
+    const cached = getRegisteredUsers();
+    const existingIndex = cached.findIndex(u => u.email === cleanEmail);
+    if (existingIndex >= 0) {
+      cached[existingIndex] = newUser;
+    } else {
+      cached.push(newUser);
+    }
+    saveRegisteredUsers(cached);
+  } catch (e) {
+    console.error("Error saving user to DB:", e);
+  }
+
+  return newUser;
+};
+
+/**
+ * Deletes a registered user from the Firestore database.
+ */
+export const deleteUserFromDb = async (email: string): Promise<void> => {
+  const cleanEmail = email.trim().toLowerCase();
+  try {
+    await deleteDoc(doc(db, 'users', cleanEmail));
+    
+    // Sync cache
+    const cached = getRegisteredUsers().filter(u => u.email !== cleanEmail);
+    saveRegisteredUsers(cached);
+  } catch (e) {
+    console.error("Error deleting user from DB:", e);
+  }
+};
+
+/**
+ * Checks a specific user's status directly from the Firestore database.
+ */
+export const checkUserOnDb = async (email: string): Promise<RegisteredUser | null> => {
+  const cleanEmail = email.trim().toLowerCase();
+  if (!cleanEmail) return null;
+  try {
+    const docRef = doc(db, 'users', cleanEmail);
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+      return docSnap.data() as RegisteredUser;
+    }
+  } catch (e) {
+    console.error("Error fetching user from DB:", e);
+  }
+  return null;
+};
+
+/**
+ * Validates if the email and license key are registered and active in the database.
+ */
+export const validateUserActivationFromDb = async (email: string, licenseKey: string): Promise<RegisteredUser | null> => {
+  const cleanEmail = email.trim().toLowerCase();
+  const cleanKey = licenseKey.trim().toUpperCase();
+  
+  const verified = await checkUserOnDb(cleanEmail);
+  if (verified && verified.isActive && verified.licenseKey.trim().toUpperCase() === cleanKey) {
+    // Cache
+    const cached = getRegisteredUsers();
+    const existingIndex = cached.findIndex(u => u.email === cleanEmail);
+    if (existingIndex >= 0) {
+      cached[existingIndex] = verified;
+    } else {
+      cached.push(verified);
+    }
+    saveRegisteredUsers(cached);
+    return verified;
+  }
+  return null;
 };
 
 /**

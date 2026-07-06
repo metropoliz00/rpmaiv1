@@ -15,7 +15,12 @@ import {
   registerUser, 
   deleteUser, 
   validateUserActivation,
-  RegisteredUser 
+  RegisteredUser,
+  getRegisteredUsersFromDb,
+  registerUserOnDb,
+  deleteUserFromDb,
+  checkUserOnDb,
+  validateUserActivationFromDb
 } from '../services/licenseService';
 import { getAdminPassword, updateAdminPassword } from '../services/adminService';
 
@@ -46,6 +51,7 @@ export const ActivationScreen: React.FC<ActivationScreenProps> = ({ onActivated 
 
   // Add User Form States
   const [newEmail, setNewEmail] = useState('');
+  const [newGeminiKey, setNewGeminiKey] = useState('');
   const [newIsActive, setNewIsActive] = useState(true);
   const [showDevModal, setShowDevModal] = useState(false);
 
@@ -55,8 +61,12 @@ export const ActivationScreen: React.FC<ActivationScreenProps> = ({ onActivated 
 
   // Load registered users and admin password on mount
   useEffect(() => {
-    const list = getRegisteredUsers();
-    setRegisteredUsers(list);
+    if (viewMode === 'admin') {
+      getRegisteredUsersFromDb().then(setRegisteredUsers).catch(console.error);
+    } else {
+      const list = getRegisteredUsers();
+      setRegisteredUsers(list);
+    }
     
     getAdminPassword().then(setDbAdminPassword);
   }, [viewMode]);
@@ -71,28 +81,35 @@ export const ActivationScreen: React.FC<ActivationScreenProps> = ({ onActivated 
       return;
     }
 
-    const users = getRegisteredUsers();
-    const verified = users.find(u => u.email.trim().toLowerCase() === cleanEmail && u.isActive);
-
-    if (verified) {
-      setIsEmailRegistered(true);
-      const cleanToken = token.trim().toUpperCase();
-      if (cleanToken === verified.licenseKey.trim().toUpperCase()) {
-        setIsAccountVerified(true);
-        setDetectedApiKey(verified.geminiApiKey);
-        setActivationError(null);
+    let active = true;
+    checkUserOnDb(cleanEmail).then((verified) => {
+      if (!active) return;
+      if (verified && verified.isActive) {
+        setIsEmailRegistered(true);
+        const cleanToken = token.trim().toUpperCase();
+        if (cleanToken === verified.licenseKey.trim().toUpperCase()) {
+          setIsAccountVerified(true);
+          setDetectedApiKey(verified.geminiApiKey);
+          setActivationError(null);
+        } else {
+          setIsAccountVerified(false);
+          setDetectedApiKey('');
+        }
       } else {
+        setIsEmailRegistered(false);
         setIsAccountVerified(false);
         setDetectedApiKey('');
       }
-    } else {
-      setIsEmailRegistered(false);
-      setIsAccountVerified(false);
-      setDetectedApiKey('');
-    }
+    }).catch((err) => {
+      console.error("Gagal memverifikasi akun dari DB:", err);
+    });
+
+    return () => {
+      active = false;
+    };
   }, [email, token]);
 
-  const handleActivate = (e: React.FormEvent) => {
+  const handleActivate = async (e: React.FormEvent) => {
     e.preventDefault();
     setActivationError(null);
 
@@ -109,7 +126,7 @@ export const ActivationScreen: React.FC<ActivationScreenProps> = ({ onActivated 
     }
 
     // Verify against the registered users database
-    const verifiedUser = validateUserActivation(cleanEmail, cleanToken);
+    const verifiedUser = await validateUserActivationFromDb(cleanEmail, cleanToken);
     if (!verifiedUser) {
       setActivationError("Akun tidak ditemukan, tidak aktif, atau Token Aktivasi tidak valid. Silakan hubungi Admin.");
       return;
@@ -144,7 +161,7 @@ export const ActivationScreen: React.FC<ActivationScreenProps> = ({ onActivated 
     setIsAdmin(false);
   };
 
-  const handleAddUser = (e: React.FormEvent) => {
+  const handleAddUser = async (e: React.FormEvent) => {
     e.preventDefault();
     const cleanEmail = newEmail.trim();
 
@@ -153,37 +170,38 @@ export const ActivationScreen: React.FC<ActivationScreenProps> = ({ onActivated 
       return;
     }
 
-    // Automatically generate/fetch the Gemini API Key from environment or active configurations
+    // Use specified key or automatically generate/fetch from environment
     const activeCreds = getSavedCredentials();
-    const systemKey = (typeof process !== "undefined" ? (process.env.GEMINI_API_KEY || process.env.API_KEY) : null) || (activeCreds ? activeCreds.geminiApiKey : '') || localStorage.getItem("user_gemini_api_key") || "AIzaSyDUMMY_AUTO_GENERATED_KEY_12345";
+    const systemKey = newGeminiKey.trim() || (typeof process !== "undefined" ? (process.env.GEMINI_API_KEY || process.env.API_KEY) : null) || (activeCreds ? activeCreds.geminiApiKey : '') || localStorage.getItem("user_gemini_api_key") || "AIzaSyDUMMY_AUTO_GENERATED_KEY_12345";
 
-    registerUser(cleanEmail, systemKey, newIsActive);
+    await registerUserOnDb(cleanEmail, systemKey, newIsActive);
     
     // Refresh list
-    const updated = getRegisteredUsers();
+    const updated = await getRegisteredUsersFromDb();
     setRegisteredUsers(updated);
     
     // Reset add form
     setNewEmail('');
+    setNewGeminiKey('');
     setNewIsActive(true);
     
     setSuccessToast("User baru berhasil terdaftar!");
     setTimeout(() => setSuccessToast(null), 2500);
   };
 
-  const handleDeleteUser = (emailToDelete: string) => {
+  const handleDeleteUser = async (emailToDelete: string) => {
     if (confirm(`Apakah Anda yakin ingin menghapus user ${emailToDelete}?`)) {
-      deleteUser(emailToDelete);
-      const updated = getRegisteredUsers();
+      await deleteUserFromDb(emailToDelete);
+      const updated = await getRegisteredUsersFromDb();
       setRegisteredUsers(updated);
       setSuccessToast("User berhasil dihapus.");
       setTimeout(() => setSuccessToast(null), 2000);
     }
   };
 
-  const handleToggleUserStatus = (user: RegisteredUser) => {
-    registerUser(user.email, user.geminiApiKey, !user.isActive);
-    const updated = getRegisteredUsers();
+  const handleToggleUserStatus = async (user: RegisteredUser) => {
+    await registerUserOnDb(user.email, user.geminiApiKey, !user.isActive);
+    const updated = await getRegisteredUsersFromDb();
     setRegisteredUsers(updated);
   };
 
@@ -441,6 +459,19 @@ export const ActivationScreen: React.FC<ActivationScreenProps> = ({ onActivated 
                         className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-purple-500 transition-all text-xs shadow-sm"
                         required
                       />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-600 mb-1.5 flex items-center gap-1.5">
+                        <Key size={12} /> API Key Gemini (Opsional)
+                      </label>
+                      <input 
+                        type="password"
+                        value={newGeminiKey}
+                        onChange={(e) => setNewGeminiKey(e.target.value)}
+                        placeholder="Jika kosong, akan menggunakan key default"
+                        className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-purple-500 transition-all text-xs shadow-sm"
+                      />
+                      <p className="text-[9px] text-slate-500 mt-1 italic">Kosongkan jika ingin menggunakan key Admin/Vercel default.</p>
                     </div>
                     <div className="flex items-center justify-between pt-1">
                       <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-700 font-medium">
