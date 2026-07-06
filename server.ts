@@ -1,5 +1,6 @@
 import express from "express";
 import path from "path";
+import fs from "fs";
 import { GoogleGenAI } from "@google/genai";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "./services/firebase";
@@ -70,11 +71,9 @@ app.post("/api/gemini/generate", async (req, res) => {
     let lastError: any = null;
     let text = "";
     const modelsToTry = [
-      'gemini-3.5-flash',
       'gemini-2.5-flash',
-      'gemini-2.0-flash',
-      'gemini-1.5-flash',
-      'gemini-3.1-flash-lite'
+      'gemini-3.1-flash-lite',
+      'gemini-3.5-flash'
     ];
 
     for (const modelName of modelsToTry) {
@@ -94,6 +93,10 @@ app.post("/api/gemini/generate", async (req, res) => {
         } catch (err: any) {
           lastError = err;
           const errMsg = err.message || "";
+          try {
+            fs.appendFileSync("error_log.txt", `[${new Date().toISOString()}] Model ${modelName} error: ${errMsg}\nStack: ${err.stack || ""}\n\n`);
+          } catch (fileErr) {}
+          
           const isRateLimitOrUnavailable = 
             errMsg.includes("503") || 
             errMsg.includes("429") || 
@@ -120,6 +123,10 @@ app.post("/api/gemini/generate", async (req, res) => {
     return res.json({ text });
   } catch (error: any) {
     console.error("Server Gemini API Error:", error);
+    try {
+      fs.appendFileSync("error_log.txt", `[${new Date().toISOString()}] Final Route Error: ${error.message || error}\nStack: ${error.stack || ""}\n\n`);
+    } catch (fileErr) {}
+    
     let errMsg = error.message || "Gagal menghubungkan ke layanan AI.";
     
     if (errMsg.includes("429")) {
