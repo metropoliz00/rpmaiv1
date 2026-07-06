@@ -50,6 +50,7 @@ export const cleanJSON = (text: any): any => {
 export const generateContent = async (prompt: string, userApiKey?: string | null): Promise<string> => {
   try {
     const key = userApiKey || localStorage.getItem("user_gemini_api_key") || null;
+    const email = localStorage.getItem("rpm_user_email") || null;
     const response = await fetch("/api/gemini/generate", {
       method: "POST",
       headers: {
@@ -57,7 +58,8 @@ export const generateContent = async (prompt: string, userApiKey?: string | null
       },
       body: JSON.stringify({
         prompt,
-        userApiKey: key
+        userApiKey: key,
+        email
       })
     });
 

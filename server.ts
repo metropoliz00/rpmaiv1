@@ -1,7 +1,8 @@
 import express from "express";
 import path from "path";
-import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "./services/firebase";
 
 const app = express();
 const PORT = 3000;
@@ -11,7 +12,7 @@ app.use(express.json());
 // API Route for Gemini content generation
 app.post("/api/gemini/generate", async (req, res) => {
   try {
-    const { prompt, userApiKey } = req.body;
+    const { prompt, userApiKey, email } = req.body;
     if (!prompt) {
       return res.status(400).json({ error: "Prompt is required" });
     }
@@ -22,9 +23,25 @@ app.post("/api/gemini/generate", async (req, res) => {
       apiKeyToUse = userApiKey;
     }
 
+    // Fallback: If no API key is passed but email is provided, retrieve key from Firestore
+    if ((!apiKeyToUse || apiKeyToUse.trim() === "") && email) {
+      try {
+        const userDocRef = doc(db, 'users', email.trim().toLowerCase());
+        const userDocSnap = await getDoc(userDocRef);
+        if (userDocSnap.exists()) {
+          const cloudKey = userDocSnap.data().geminiApiKey;
+          if (cloudKey && cloudKey.trim() !== "" && !cloudKey.includes("DUMMY")) {
+            apiKeyToUse = cloudKey;
+          }
+        }
+      } catch (dbErr) {
+        console.error("Failed to fetch API key from Firestore in backend:", dbErr);
+      }
+    }
+
     if (!apiKeyToUse) {
       return res.status(500).json({
-        error: "API Key Gemini tidak ditemukan. Silakan masukkan API Key Anda di menu Pengaturan."
+        error: "API Key Gemini tidak ditemukan. Silakan masukkan API Key Anda di menu Pengaturan atau hubungi Admin."
       });
     }
 
@@ -40,7 +57,7 @@ app.post("/api/gemini/generate", async (req, res) => {
     // Robust fallback and retry mechanism to handle temporary 503 / 429 / high-demand errors
     let lastError: any = null;
     let text = "";
-    const modelsToTry = ['gemini-2.5-flash', 'gemini-3.5-flash'];
+    const modelsToTry = ['gemini-3.5-flash', 'gemini-3.1-flash-lite'];
 
     for (const modelName of modelsToTry) {
       let attempts = 3;
@@ -99,6 +116,7 @@ app.post("/api/gemini/generate", async (req, res) => {
 // Vite middleware for development
 if (process.env.NODE_ENV !== "production") {
   const startVite = async () => {
+    const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
