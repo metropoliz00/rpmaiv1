@@ -176,9 +176,9 @@ export default function App() {
               const result = await generateContent(prompt, userGeminiKey);
               setFormData(prev => ({ ...prev, [targetField]: result.trim() }));
           }
-      } catch (e) {
+      } catch (e: any) {
           console.error(e);
-          alert("Gagal generate AI.");
+          alert("Gagal generate AI: " + (e.message || e));
       } finally {
           setLoaders(prev => ({ ...prev, [fieldName]: false }));
       }
@@ -236,7 +236,7 @@ export default function App() {
         const cleaned = res.replace(/```html/g, '').replace(/```/g, '').trim();
         setGeneratedMateriContent(cleaned);
         setFormData(prev => ({ ...prev, materiContent: cleaned }));
-    } catch(e) { alert("Gagal generate materi"); }
+    } catch(e: any) { alert("Gagal generate materi: " + (e.message || e)); }
     setLoaders(prev => ({ ...prev, materi: false }));
   };
 
@@ -323,7 +323,7 @@ export default function App() {
         const cleaned = result.replace(/```html/g, '').replace(/```/g, '').trim();
         setGeneratedSoalContent(cleaned);
         setFormData(prev => ({ ...prev, soalContent: cleaned }));
-     } catch (error) { alert("Gagal generate soal"); }
+     } catch (error: any) { alert("Gagal generate soal: " + (error.message || error)); }
      setIsGeneratingSoal(false);
   };
 
@@ -341,7 +341,7 @@ export default function App() {
             setGeneratedRubrikContent(data);
             setFormData(prev => ({ ...prev, rubrikContent: data }));
         }
-    } catch(e) { alert("Gagal generate rubrik"); }
+    } catch(e: any) { alert("Gagal generate rubrik: " + (e.message || e)); }
     setLoaders(prev => ({ ...prev, rubrik: false }));
   };
 
@@ -397,7 +397,7 @@ export default function App() {
             setGeneratedLKMContent(json);
             setFormData(prev => ({ ...prev, lkmContent: json }));
         }
-    } catch(e) { alert("Gagal generate LKM"); }
+    } catch(e: any) { alert("Gagal generate LKM: " + (e.message || e)); }
     setLoaders(prev => ({ ...prev, lkm: false }));
   };
 
@@ -419,7 +419,7 @@ export default function App() {
               }));
               setToastMessage("RPM berhasil di-generate!");
           }
-      } catch (e) { console.error(e); alert("Gagal generate RPM"); }
+      } catch (e: any) { console.error(e); alert("Gagal generate RPM: " + (e.message || e)); }
       setLoaders(prev => ({ ...prev, rpm: false }));
       setTimeout(() => setToastMessage(null), 3000);
   };
@@ -451,7 +451,7 @@ export default function App() {
 
               setToastMessage("Lampiran berhasil di-generate!");
           }
-      } catch (e) { console.error(e); alert("Gagal generate lampiran"); }
+      } catch (e: any) { console.error(e); alert("Gagal generate lampiran: " + (e.message || e)); }
       setLoaders(prev => ({ ...prev, lampiran: false }));
       setTimeout(() => setToastMessage(null), 3000);
   };

@@ -26,13 +26,25 @@ app.post("/api/gemini/generate", async (req, res) => {
     // Fallback: If no API key is passed but email is provided, retrieve key from Firestore
     if ((!apiKeyToUse || apiKeyToUse.trim() === "") && email) {
       try {
-        const userDocRef = doc(db, 'users', email.trim().toLowerCase());
-        const userDocSnap = await getDoc(userDocRef);
-        if (userDocSnap.exists()) {
-          const cloudKey = userDocSnap.data().geminiApiKey;
-          if (cloudKey && cloudKey.trim() !== "" && !cloudKey.includes("DUMMY")) {
-            apiKeyToUse = cloudKey;
+        const fetchPromise = (async () => {
+          const userDocRef = doc(db, 'users', email.trim().toLowerCase());
+          const userDocSnap = await getDoc(userDocRef);
+          if (userDocSnap.exists()) {
+            const cloudKey = userDocSnap.data().geminiApiKey;
+            if (cloudKey && cloudKey.trim() !== "" && !cloudKey.includes("DUMMY")) {
+              return cloudKey;
+            }
           }
+          return null;
+        })();
+
+        const timeoutPromise = new Promise<null>((_, reject) => 
+          setTimeout(() => reject(new Error("Timeout fetching API Key")), 3000)
+        );
+
+        const cloudKey = await Promise.race([fetchPromise, timeoutPromise]);
+        if (cloudKey) {
+          apiKeyToUse = cloudKey;
         }
       } catch (dbErr) {
         console.error("Failed to fetch API key from Firestore in backend:", dbErr);
@@ -57,7 +69,13 @@ app.post("/api/gemini/generate", async (req, res) => {
     // Robust fallback and retry mechanism to handle temporary 503 / 429 / high-demand errors
     let lastError: any = null;
     let text = "";
-    const modelsToTry = ['gemini-3.5-flash', 'gemini-3.1-flash-lite'];
+    const modelsToTry = [
+      'gemini-3.5-flash',
+      'gemini-2.5-flash',
+      'gemini-2.0-flash',
+      'gemini-1.5-flash',
+      'gemini-3.1-flash-lite'
+    ];
 
     for (const modelName of modelsToTry) {
       let attempts = 3;
