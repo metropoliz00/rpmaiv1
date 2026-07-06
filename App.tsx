@@ -552,7 +552,7 @@ export default function App() {
                 </h1>
                 <p className="text-[10px] sm:text-xs text-blue-100 opacity-90 truncate">Rencana Pembelajaran Mendalam</p>
             </div>
-            <div className="flex items-center gap-1 shrink-0 ml-auto sm:ml-2">
+            <div className="flex items-center gap-1 shrink-0 ml-auto sm:ml-2 md:hidden">
               <button 
                   onClick={() => setShowSettings(true)} 
                   className="p-1.5 rounded-full bg-white/10 hover:bg-white/20 transition-all text-blue-100 hover:text-white"
@@ -577,11 +577,39 @@ export default function App() {
             </div>
           </div>
           <div className="hidden md:flex items-center gap-4 text-sm font-medium shrink-0">
-             <span className={`px-3 py-1 rounded-full ${step === 1 ? 'bg-orange-500 text-white' : 'text-blue-200'}`}>1. Identitas</span>
-             <ChevronRight size={16} className="text-blue-400" />
-             <span className={`px-3 py-1 rounded-full ${step === 2 ? 'bg-orange-500 text-white' : 'text-blue-200'}`}>2. Konten & AI</span>
-             <ChevronRight size={16} className="text-blue-400" />
-             <span className={`px-3 py-1 rounded-full ${step === 3 ? 'bg-orange-500 text-white' : 'text-blue-200'}`}>3. Detail</span>
+             <div className="flex items-center gap-4">
+               <span className={`px-3 py-1 rounded-full ${step === 1 ? 'bg-orange-500 text-white' : 'text-blue-200'}`}>1. Identitas</span>
+               <ChevronRight size={16} className="text-blue-400" />
+               <span className={`px-3 py-1 rounded-full ${step === 2 ? 'bg-orange-500 text-white' : 'text-blue-200'}`}>2. Konten & AI</span>
+               <ChevronRight size={16} className="text-blue-400" />
+               <span className={`px-3 py-1 rounded-full ${step === 3 ? 'bg-orange-500 text-white' : 'text-blue-200'}`}>3. Detail</span>
+             </div>
+             
+             <div className="h-6 w-px bg-white/20 ml-2"></div>
+             
+             <div className="flex items-center gap-1">
+               <button 
+                   onClick={() => setShowSettings(true)} 
+                   className="p-1.5 rounded-full bg-white/10 hover:bg-white/20 transition-all text-blue-100 hover:text-white"
+                   title="Pengaturan API Key"
+               >
+                   <Settings size={20} className="sm:w-6 sm:h-6" />
+               </button>
+               <button 
+                   onClick={() => setShowDevInfo(true)} 
+                   className="p-1.5 rounded-full bg-white/10 hover:bg-white/20 transition-all text-blue-100 hover:text-white"
+                   title="Info Developer"
+               >
+                   <UserCircle size={20} className="sm:w-6 sm:h-6" />
+               </button>
+               <button 
+                   onClick={() => setShowDeactivateConfirm(true)} 
+                   className="p-1.5 rounded-full bg-white/10 hover:bg-white/20 transition-all text-blue-100 hover:text-white"
+                   title="Keluar dari Sesi"
+               >
+                   <LogOut size={20} className="sm:w-6 sm:h-6" />
+               </button>
+             </div>
           </div>
 
         </div>
