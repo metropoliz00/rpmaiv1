@@ -5,11 +5,11 @@ const isServer = typeof window === 'undefined';
 const getCredentials = () => {
   const supabaseUrl = isServer
     ? (process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "")
-    : (import.meta.env.VITE_SUPABASE_URL || "");
+    : ((import.meta as any).env.VITE_SUPABASE_URL || "");
 
   const supabaseAnonKey = isServer
     ? (process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || "")
-    : (import.meta.env.VITE_SUPABASE_ANON_KEY || "");
+    : ((import.meta as any).env.VITE_SUPABASE_ANON_KEY || "");
     
   return { supabaseUrl, supabaseAnonKey };
 };
