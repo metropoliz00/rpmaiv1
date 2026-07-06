@@ -433,11 +433,12 @@ export default function App() {
           if (json) {
               setFormData(prev => ({
                   ...prev,
-                  metode: json.metode || "",
-                  lintasDisiplin: json.lintasDisiplin || "",
-                  kemitraan: json.kemitraan || "",
-                  lingkunganBelajar: json.lingkunganBelajar || "",
-                  alatDigital: json.alatDigital || "",
+                  metode: json.metode || prev.metode || "",
+                  // Do NOT overwrite user-selected/configured values for these fields
+                  lintasDisiplin: prev.lintasDisiplin,
+                  kemitraan: prev.kemitraan,
+                  lingkunganBelajar: prev.lingkunganBelajar,
+                  alatDigital: prev.alatDigital,
                   materiContent: json.materi || "",
                   lkmContent: json.lkm || "",
                   rubrikContent: json.rubrik || ""

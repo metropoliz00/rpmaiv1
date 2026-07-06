@@ -90,6 +90,10 @@ export const buildBulkPrompts = (type: 'rpm' | 'lampiran', formData: RPMData): s
     - Model: ${formData.modelPembelajaran}
     - Pendekatan: ${formData.pendekatanPembelajaran}
     - Metode: ${formData.metode}
+    - Pemanfaatan Digital (Alat Digital): ${formData.alatDigital || "-"}
+    - Lingkungan Belajar: ${formData.lingkunganBelajar || "-"}
+    - Lintas Disiplin Ilmu: ${formData.lintasDisiplin || "-"}
+    - Kemitraan: ${formData.kemitraan || "-"}
     
     Istilah wajib: Gunakan kata "Murid" (bukan siswa/peserta didik).
   `;
@@ -113,10 +117,6 @@ export const buildBulkPrompts = (type: 'rpm' | 'lampiran', formData: RPMData): s
       Buat lampiran data pelengkap untuk RPM dalam format JSON:
       {
         "metode": "3 metode pembelajaran, pisahkan koma.",
-        "lintasDisiplin": "2 mapel relevan, pisahkan koma.",
-        "kemitraan": "Pihak/mitra relevan, pisahkan koma.",
-        "lingkunganBelajar": "Tempat belajar relevan, pisahkan koma.",
-        "alatDigital": "Alat/media digital relevan, pisahkan koma.",
         "materi": "Ringkasan materi pembelajaran yang esensial, padat, and jelas untuk murid dalam format HTML.",
         "lkm": {
           "judul_kegiatan": "Judul LKM",
@@ -138,7 +138,7 @@ export const buildBulkPrompts = (type: 'rpm' | 'lampiran', formData: RPMData): s
 };
 
 export const buildPrompt = (fieldName: string, formData: RPMData, additionalContext: string, fileName?: string): string => {
-    let context = `Mata Pelajaran: ${formData.mataPelajaran}, Materi: ${formData.materiPokok}, CP: ${formData.capaianPembelajaran}, Kelas: ${formData.kelas}, Model: ${formData.modelPembelajaran}.`;
+    let context = `Mata Pelajaran: ${formData.mataPelajaran}, Materi: ${formData.materiPokok}, CP: ${formData.capaianPembelajaran}, Kelas: ${formData.kelas}, Model: ${formData.modelPembelajaran}, Pendekatan: ${formData.pendekatanPembelajaran}, Metode: ${formData.metode}, Pemanfaatan Digital: ${formData.alatDigital || "-"}, Lingkungan Belajar: ${formData.lingkunganBelajar || "-"}, Lintas Disiplin Ilmu: ${formData.lintasDisiplin || "-"}, Kemitraan: ${formData.kemitraan || "-"}.`;
     if (additionalContext) context += `\nKonteks tambahan: ${additionalContext}`;
     if (fileName) context += `\nReferensikan data dari file: ${fileName}`;
 

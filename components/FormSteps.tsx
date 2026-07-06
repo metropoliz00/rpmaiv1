@@ -49,37 +49,47 @@ export const Step1Identitas: React.FC<StepProps> = ({ formData, setFormData }) =
 };
 
 const digitalPresets = [
-  "Chromebook & Google Workspace",
-  "Quizizz / Kahoot",
-  "Proyektor & YouTube Video",
+  "Chromebook",
+  "Quizizz",
+  "YouTube Video",
+  "TV Interaktif",
+  "Media Pembelajaran Interaktif",
+  "Blog Pembelajaran",
   "LKPD Digital (LiveWorksheets)",
-  "Canva for Education",
-  "Simulasi Interaktif / Phet Simulation"
+  "Canva",
+  "Geogebra",
+  "Assembler Edu",
+  "Phet Simulation"
 ];
 
 const lingkunganPresets = [
-  "Ruang Kelas (Berkelompok)",
+  "Ruang Kelas",
   "Perpustakaan Sekolah",
   "Halaman / Lapangan Sekolah",
   "Lingkungan Sekitar Sekolah",
-  "Laboratorium Komputer",
+  "Sawah/Kebun",
   "Pojok Baca Kelas"
 ];
 
 const lintasDisiplinPresets = [
-  "IPAS (Sains & Sosial)",
+  "PAI",
+  "IPAS",
   "Pendidikan Pancasila",
-  "Bahasa Indonesia (Literasi)",
-  "Matematika (Logika)",
-  "Seni (Kreativitas)",
-  "Koding & Robotika"
+  "Bahasa Indonesia",
+  "Matematika",
+  "Seni Budaya",
+  "KKA",
+  "Bahasa Jawa",
+  "Bahasa Inggris",
+  "PJOK"
 ];
 
 const kemitraanPresets = [
   "Orang Tua Murid",
-  "Praktisi / Tokoh Masyarakat",
-  "Puskesmas / Dokter",
-  "Tutor Sebaya / Kakak Kelas",
+  "Rekan Sejawat",
+  "Puskesmas",
+  "kepolisian",
+  "Kelompok belajar",
   "Komunitas Peduli Lingkungan"
 ];
 
@@ -218,9 +228,10 @@ const metodeOptions = [
   "Diskusi Kelompok",
   "Tanya Jawab",
   "Presentasi",
-  "Eksperimen/Percobaan",
+  "Eksperimen",
   "Demonstrasi",
-  "Simulasi/Bermain Peran",
+  "Simulasi",
+  "Bermain Peran",
   "Penugasan",
   "Ceramah Interaktif",
   "Mind Mapping",
