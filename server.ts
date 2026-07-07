@@ -188,31 +188,30 @@ app.post("/api/gemini/generate", async (req, res) => {
   }
 });
 
-// Vite middleware for development
-async function startServer() {
-  if (process.env.NODE_ENV !== "production") {
+// Vite middleware for development or local production
+if (process.env.NODE_ENV !== "production") {
+  async function startDevServer() {
     const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
     });
     app.use(vite.middlewares);
-  } else {
-    const distPath = path.join(process.cwd(), 'dist');
-    app.use(express.static(distPath));
-    app.get('*', (req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
-    });
-  }
-
-  // Export the app for Vercel and listen for local/cloud run
-  if (process.env.NODE_ENV !== "production" || !process.env.VERCEL) {
     app.listen(PORT, "0.0.0.0", () => {
-      console.log(`Server running on port ${PORT}`);
+      console.log(`Dev server running on port ${PORT}`);
     });
   }
+  startDevServer();
+} else if (!process.env.VERCEL) {
+  // Local production run
+  const distPath = path.join(process.cwd(), 'dist');
+  app.use(express.static(distPath));
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(distPath, 'index.html'));
+  });
+  app.listen(PORT, "0.0.0.0", () => {
+    console.log(`Production server running on port ${PORT}`);
+  });
 }
-
-startServer();
 
 export default app;
