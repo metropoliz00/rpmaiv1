@@ -162,11 +162,6 @@ export const ActivationScreen: React.FC<ActivationScreenProps> = ({ onActivated 
       setActivationError("Email Pengguna wajib diisi.");
       return;
     }
-    const cleanUserKey = userGeminiKey.trim();
-    if (!cleanUserKey) {
-      setActivationError("API Key Gemini wajib diisi.");
-      return;
-    }
 
     // Verify against the registered users system
     const verifiedUser = await checkUserOnDb(cleanEmail);
@@ -175,13 +170,8 @@ export const ActivationScreen: React.FC<ActivationScreenProps> = ({ onActivated 
       return;
     }
 
-    if (cleanUserKey) {
-      await updateUserGeminiKeyOnDb(cleanEmail, cleanUserKey);
-      verifiedUser.geminiApiKey = cleanUserKey;
-    }
-
-    // Save credentials (using dummy token since it's no longer used for login)
-    saveCredentials(cleanEmail, "NO_TOKEN", verifiedUser.geminiApiKey);
+    // Save credentials (using centralized server key)
+    saveCredentials(cleanEmail, "NO_TOKEN", verifiedUser.geminiApiKey || "CENTRALIZED_SERVER_KEY");
     
     setSuccessToast(`Aktivasi Berhasil! Selamat datang, ${verifiedUser.email}`);
     setTimeout(() => {
@@ -361,62 +351,7 @@ export const ActivationScreen: React.FC<ActivationScreenProps> = ({ onActivated 
                 />
               </div>
 
-              {userStatus !== 'not_found' && userStatus !== 'pending' && (
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5 flex items-center gap-2">
-                    <Key size={14} className="text-slate-500" /> API Key Gemini
-                  </label>
-                  <input 
-                    type="password"
-                    value={userGeminiKey}
-                    onChange={(e) => {
-                      setUserGeminiKey(e.target.value);
-                      setActivationKeyTestResult(null);
-                    }}
-                    placeholder="Masukkan API Key Gemini Anda (AIzaSy...)"
-                    className="w-full bg-slate-50/50 border border-slate-200 rounded-xl px-4 py-3 text-slate-900 placeholder-slate-400 focus:bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 transition-all text-sm shadow-sm"
-                    required
-                  />
-                  <div className="mt-2 flex items-center justify-between">
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        if (!userGeminiKey.trim()) {
-                          setActivationKeyTestResult({ success: false, message: "API Key masih kosong." });
-                          return;
-                        }
-                        setIsTestingActivationKey(true);
-                        setActivationKeyTestResult(null);
-                        const res = await testApiKey(userGeminiKey);
-                        setActivationKeyTestResult(res);
-                        setIsTestingActivationKey(false);
-                      }}
-                      disabled={isTestingActivationKey}
-                      className="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-semibold rounded-lg border border-slate-300 flex items-center gap-1 transition-all"
-                    >
-                      {isTestingActivationKey ? <span>⏳ Menguji...</span> : <><Sparkles size={12} className="text-blue-600" /> Tes Koneksi API</>}
-                    </button>
-                    <span className="text-[10px] text-slate-500 italic">Cek validitas koneksi API</span>
-                  </div>
 
-                  {activationKeyTestResult && (
-                    <div className={`mt-2 p-2.5 rounded-lg text-xs flex items-start gap-2 ${activationKeyTestResult.success ? 'bg-emerald-50 border border-emerald-200 text-emerald-800' : 'bg-red-50 border border-red-200 text-red-800'}`}>
-                      {activationKeyTestResult.success ? <CheckCircle2 size={14} className="text-emerald-600 shrink-0 mt-0.5" /> : <AlertTriangle size={14} className="text-red-600 shrink-0 mt-0.5" />}
-                      <div>
-                        <p className="font-bold">{activationKeyTestResult.success ? "Valid & Terhubung!" : "Tidak Valid"}</p>
-                        <p className="text-[11px] mt-0.5">{activationKeyTestResult.message}</p>
-                      </div>
-                    </div>
-                  )}
-
-                  <p className="text-[11px] text-slate-500 mt-1.5 leading-relaxed">
-                    💡 <strong>Petunjuk API Key Gemini yang Valid:</strong><br/>
-                    • Harus diawali dengan prefiks <strong>AIzaSy...</strong><br/>
-                    • Dibuat khusus dari <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline font-medium">Google AI Studio</a>.<br/>
-                    • Pastikan tidak ada spasi di awal atau akhir saat menyalin (copy-paste).
-                  </p>
-                </div>
-              )}
 
               <button
                 type="submit"
