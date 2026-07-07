@@ -95,7 +95,8 @@ export const generateSmartFallback = (prompt: string): string => {
 
 export const generateContent = async (prompt: string, userApiKey?: string | null): Promise<string> => {
   try {
-    const key = userApiKey || localStorage.getItem("user_gemini_api_key") || null;
+    const provider = localStorage.getItem("ai_provider") || "gemini";
+    const key = userApiKey || localStorage.getItem("user_ai_api_key") || localStorage.getItem("user_gemini_api_key") || null;
     const email = localStorage.getItem("rpm_user_email") || null;
     const response = await fetch("/api/gemini/generate", {
       method: "POST",
@@ -105,6 +106,7 @@ export const generateContent = async (prompt: string, userApiKey?: string | null
       body: JSON.stringify({
         prompt,
         userApiKey: key,
+        aiProvider: provider,
         email
       })
     });
@@ -117,17 +119,18 @@ export const generateContent = async (prompt: string, userApiKey?: string | null
     const data = await response.json();
     return data.text || generateSmartFallback(prompt);
   } catch (error: any) {
-    console.warn("Gemini API Network/Server Error, using smart fallback:", error);
+    console.warn("AI API Network/Server Error, using smart fallback:", error);
     return generateSmartFallback(prompt);
   }
 };
 
-export const testApiKey = async (apiKey: string): Promise<{ success: boolean; message: string }> => {
+export const testApiKey = async (apiKey: string, provider?: string): Promise<{ success: boolean; message: string }> => {
   try {
+    const currentProvider = provider || localStorage.getItem("ai_provider") || "gemini";
     const response = await fetch("/api/gemini/test", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ apiKey }),
+      body: JSON.stringify({ apiKey, aiProvider: currentProvider }),
     });
     
     const text = await response.text();

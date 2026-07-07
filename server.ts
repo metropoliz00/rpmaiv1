@@ -68,193 +68,173 @@ function generateSmartFallback(prompt: string): string {
   return "1. Murid mempelajari konsep materi secara mendalam melalui pendekatan interaktif.\n2. Murid terlibat aktif dalam diskusi kelompok dan pemecahan masalah.\n3. Murid mampu menyimpulkan dan merefleksikan hasil pembelajaran dengan baik.";
 }
 
-// API Route for testing Gemini API key validity and connection
+async function callOpenAICompatibleAPI(provider: string, apiKey: string, prompt: string): Promise<string> {
+  let endpoint = "https://api.openai.com/v1/chat/completions";
+  let model = "gpt-4o-mini";
+  if (provider === "deepseek") {
+    endpoint = "https://api.deepseek.com/chat/completions";
+    model = "deepseek-chat";
+  } else if (provider === "groq") {
+    endpoint = "https://api.groq.com/openai/v1/chat/completions";
+    model = "llama-3.3-70b-versatile";
+  } else if (provider === "openrouter") {
+    endpoint = "https://openrouter.ai/api/v1/chat/completions";
+    model = "deepseek/deepseek-chat";
+  }
+
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${apiKey}`
+    },
+    body: JSON.stringify({
+      model: model,
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.7
+    })
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.error?.message || `HTTP error! status: ${response.status}`);
+  }
+  return data.choices?.[0]?.message?.content || "";
+}
+
+// API Route for testing API key validity and connection for any provider
 app.post("/api/gemini/test", async (req, res) => {
   try {
-    const { apiKey } = req.body;
-    const cleanKey = cleanApiKey(apiKey) || process.env.GEMINI_API_KEY || process.env.API_KEY;
+    const { apiKey, aiProvider } = req.body;
+    const provider = aiProvider || "gemini";
+    const cleanKey = cleanApiKey(apiKey);
     if (!cleanKey || cleanKey.trim() === "" || cleanKey.includes("DUMMY")) {
       return res.status(400).json({ success: false, error: "API Key kosong atau tidak valid." });
     }
 
-    if (!cleanKey.startsWith("AIzaSy")) {
-      return res.status(400).json({ success: false, error: "Format API Key Gemini tidak valid. API Key Google AI Studio yang valid harus diawali dengan 'AIzaSy'." });
+    if (provider === "gemini") {
+      if (!cleanKey.startsWith("AIzaSy")) {
+        return res.status(400).json({ success: false, error: "Format API Key Gemini harus diawali dengan 'AIzaSy'." });
+      }
+      const ai = new GoogleGenAI({
+        apiKey: cleanKey,
+        httpOptions: { headers: { 'User-Agent': 'aistudio-build' } }
+      });
+      const modelsToTry = ['gemini-1.5-flash', 'gemini-1.5-pro'];
+      let success = false;
+      let lastErr: any = null;
+      for (const modelName of modelsToTry) {
+        try {
+          await ai.models.generateContent({
+            model: modelName,
+            contents: [{ role: 'user', parts: [{ text: 'Test connection' }] }]
+          });
+          success = true;
+          break;
+        } catch (err: any) {
+          lastErr = err;
+        }
+      }
+      if (!success) {
+        const errMsg = lastErr?.message || "Gagal menghubungkan ke Gemini API.";
+        return res.status(400).json({ success: false, error: errMsg });
+      }
+      return res.json({ success: true, message: "API Key Gemini valid dan terhubung!" });
+    } else {
+      let testEndpoint = "https://api.openai.com/v1/chat/completions";
+      let testModel = "gpt-4o-mini";
+      if (provider === "deepseek") {
+        testEndpoint = "https://api.deepseek.com/chat/completions";
+        testModel = "deepseek-chat";
+      } else if (provider === "groq") {
+        testEndpoint = "https://api.groq.com/openai/v1/chat/completions";
+        testModel = "llama-3.3-70b-versatile";
+      } else if (provider === "openrouter") {
+        testEndpoint = "https://openrouter.ai/api/v1/chat/completions";
+        testModel = "deepseek/deepseek-chat";
+      }
+
+      const testRes = await fetch(testEndpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${cleanKey}`
+        },
+        body: JSON.stringify({
+          model: testModel,
+          messages: [{ role: "user", content: "Hi" }],
+          max_tokens: 5
+        })
+      });
+
+      const testData = await testRes.json();
+      if (!testRes.ok) {
+        const errDesc = testData.error?.message || `HTTP ${testRes.status}`;
+        return res.status(400).json({ success: false, error: `Gagal terhubung ke ${provider.toUpperCase()}: ${errDesc}` });
+      }
+
+      return res.json({ success: true, message: `API Key ${provider.toUpperCase()} valid dan terhubung dengan sukses!` });
     }
-
-    const ai = new GoogleGenAI({
-      apiKey: cleanKey,
-      httpOptions: {
-        headers: { 'User-Agent': 'aistudio-build' }
-      }
-    });
-
-    const modelsToTry = ['gemini-1.5-flash', 'gemini-1.5-pro'];
-    let success = false;
-    let lastErr: any = null;
-
-    for (const modelName of modelsToTry) {
-      try {
-        await ai.models.generateContent({
-          model: modelName,
-          contents: [{ role: 'user', parts: [{ text: 'Test connection' }] }]
-        });
-        success = true;
-        break;
-      } catch (err: any) {
-        lastErr = err;
-      }
-    }
-
-    if (!success) {
-      const errMsg = lastErr?.message || "Gagal menghubungkan ke Gemini API.";
-      if (errMsg.includes("403") || errMsg.includes("401") || errMsg.includes("API key not valid") || errMsg.includes("INVALID_ARGUMENT") || errMsg.includes("invalid key")) {
-        return res.status(400).json({ success: false, error: "API Key tidak valid atau tidak memiliki akses (Invalid API Key)." });
-      }
-      if (errMsg.includes("429")) {
-        return res.status(400).json({ success: false, error: "Kuota API Key habis / Terkena Limit 429 Too Many Requests." });
-      }
-      return res.status(400).json({ success: false, error: errMsg });
-    }
-
-    return res.json({ success: true, message: "API Key valid dan berhasil terhubung dengan Gemini AI!" });
   } catch (error: any) {
     return res.status(400).json({ success: false, error: error.message || "Gagal menguji API Key." });
   }
 });
 
-// API Route for Gemini content generation
+// API Route for AI content generation (multi-provider)
 app.post("/api/gemini/generate", async (req, res) => {
   try {
-    const { prompt, userApiKey, email } = req.body;
+    const { prompt, userApiKey, aiProvider, email } = req.body;
     if (!prompt) {
       return res.status(400).json({ error: "Prompt is required" });
     }
 
-    // Determine the API Key to use
-    let apiKeyToUse = cleanApiKey(process.env.GEMINI_API_KEY);
-    const cleanedUserKey = cleanApiKey(userApiKey);
-    if (cleanedUserKey !== "" && !cleanedUserKey.includes("DUMMY")) {
-      apiKeyToUse = cleanedUserKey;
+    const provider = aiProvider || "gemini";
+    let apiKeyToUse = cleanApiKey(userApiKey);
+
+    if ((!apiKeyToUse || apiKeyToUse.trim() === "" || apiKeyToUse.includes("DUMMY")) && provider === "gemini") {
+      apiKeyToUse = cleanApiKey(process.env.GEMINI_API_KEY);
     }
 
-    // Fallback: If no API key is passed but email is provided, retrieve key from Supabase
-    if ((!apiKeyToUse || apiKeyToUse.trim() === "") && email) {
+    if (!apiKeyToUse && email && provider === "gemini") {
       try {
-        const fetchPromise = (async () => {
-          const { data, error } = await supabase
-            .from('users')
-            .select('gemini_api_key')
-            .eq('email', email.trim().toLowerCase())
-            .maybeSingle();
-
-          if (error) {
-            console.error("Supabase query error:", error);
-            return null;
-          }
-
-          if (data && data.gemini_api_key) {
-            const cloudKey = cleanApiKey(data.gemini_api_key);
-            if (cloudKey !== "" && !cloudKey.includes("DUMMY")) {
-              return cloudKey;
-            }
-          }
-          return null;
-        })();
-
-        const timeoutPromise = new Promise<null>((_, reject) => 
-          setTimeout(() => reject(new Error("Timeout fetching API Key")), 3000)
-        );
-
-        const cloudKey = await Promise.race([fetchPromise, timeoutPromise]);
-        if (cloudKey) {
-          apiKeyToUse = cloudKey;
+        const { data } = await supabase
+          .from('users')
+          .select('gemini_api_key')
+          .eq('email', email.trim().toLowerCase())
+          .maybeSingle();
+        if (data && data.gemini_api_key) {
+          apiKeyToUse = cleanApiKey(data.gemini_api_key);
         }
-      } catch (dbErr) {
-        console.error("Failed to fetch API key from Supabase in backend:", dbErr);
+      } catch (e) {
+        console.error("Supabase fetch error:", e);
       }
     }
 
-    if (!apiKeyToUse) {
+    if (!apiKeyToUse || apiKeyToUse.trim() === "" || apiKeyToUse.includes("DUMMY")) {
       console.log("No API Key found, using smart offline generator fallback.");
       const fallbackText = generateSmartFallback(prompt || "");
       return res.json({ text: fallbackText, fallback: true });
     }
 
-    const ai = new GoogleGenAI({
-      apiKey: apiKeyToUse,
-      httpOptions: {
-        headers: {
-          'User-Agent': 'aistudio-build',
-        }
-      }
-    });
-
-    console.log(`Using API Key (first 4): ${apiKeyToUse.substring(0, 4)}`);
-    try {
-      fs.appendFileSync("error_log.txt", `[${new Date().toISOString()}] Using API Key (first 4): ${apiKeyToUse.substring(0, 4)}\n`);
-    } catch (fileErr) {}
-    
-    // Robust fallback and retry mechanism to handle temporary 503 / 429 / high-demand errors
-    let lastError: any = null;
-    let text = "";
-    const modelsToTry = [
-      'gemini-1.5-flash',
-      'gemini-1.5-pro'
-    ];
-
-    for (const modelName of modelsToTry) {
-      let attempts = 3;
-      let delay = 1000;
-      while (attempts > 0) {
-        try {
-          console.log(`Trying model: ${modelName}, attempts left: ${attempts}`);
-          const response = await ai.models.generateContent({
-            model: modelName,
-            contents: prompt,
-          });
-          if (response && response.text) {
-            text = response.text;
-            break;
-          }
-        } catch (err: any) {
-          lastError = err;
-          const errMsg = err.message || "";
-          try {
-            fs.appendFileSync("error_log.txt", `[${new Date().toISOString()}] Model ${modelName} error: ${errMsg}\nStack: ${err.stack || ""}\n\n`);
-          } catch (fileErr) {}
-          
-          const isRateLimitOrUnavailable = 
-            errMsg.includes("503") || 
-            errMsg.includes("429") || 
-            errMsg.includes("UNAVAILABLE") || 
-            errMsg.includes("RESOURCE_EXHAUSTED");
-          
-          if (isRateLimitOrUnavailable) {
-            console.warn(`Temporary Gemini error on model ${modelName}. Retrying in ${delay}ms...`, err);
-            await new Promise(resolve => setTimeout(resolve, delay));
-            delay *= 2;
-            attempts--;
-          } else {
-            console.error(`Non-retriable error on model ${modelName}:`, err);
-            break; // Try next model in the outer list
-          }
-        }
-      }
-      if (text) break;
+    let textResult = "";
+    if (provider === "gemini") {
+      const ai = new GoogleGenAI({
+        apiKey: apiKeyToUse,
+        httpOptions: { headers: { 'User-Agent': 'aistudio-build' } }
+      });
+      const response = await ai.models.generateContent({
+        model: 'gemini-1.5-flash',
+        contents: [{ role: 'user', parts: [{ text: prompt }] }]
+      });
+      textResult = response.text || generateSmartFallback(prompt);
+    } else {
+      textResult = await callOpenAICompatibleAPI(provider, apiKeyToUse, prompt);
     }
 
-    if (!text) {
-      throw lastError || new Error("Gagal mendapatkan respons dari semua model AI.");
-    }
-    return res.json({ text });
+    return res.json({ text: textResult });
   } catch (error: any) {
-    console.error("Server Gemini API Error (falling back to smart generator):", error);
-    try {
-      fs.appendFileSync("error_log.txt", `[${new Date().toISOString()}] Fallback activated due to error: ${error.message || error}\n\n`);
-    } catch (fileErr) {}
-    
-    const fallbackText = generateSmartFallback(prompt || "");
-    return res.json({ text: fallbackText, fallback: true });
+    console.error("AI Generation Error:", error);
+    const fallbackText = generateSmartFallback(req.body.prompt || "");
+    return res.json({ text: fallbackText, fallback: true, error: error.message });
   }
 });
 

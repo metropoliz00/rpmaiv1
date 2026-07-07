@@ -29,7 +29,8 @@ export default function App() {
   const [showDevInfo, setShowDevInfo] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showApiKey, setShowApiKey] = useState(false);
-  const [userGeminiKey, setUserGeminiKey] = useState(localStorage.getItem('user_gemini_api_key') || '');
+  const [userGeminiKey, setUserGeminiKey] = useState(localStorage.getItem('user_ai_api_key') || localStorage.getItem('user_gemini_api_key') || '');
+  const [aiProvider, setAiProvider] = useState(localStorage.getItem('ai_provider') || 'gemini');
   const [isTestingKey, setIsTestingKey] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
 
@@ -719,9 +720,28 @@ export default function App() {
       {showSettings && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in print:hidden">
             <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl relative animate-fade-in-up">
-                <h2 className="text-xl font-bold mb-4 flex items-center gap-2"><Settings className="text-blue-600" /> Pengaturan API Key</h2>
-                <p className="text-sm text-gray-600 mb-4">Masukkan API Key Gemini Anda untuk menggunakan kuota pribadi. Jika dikosongkan, aplikasi akan menggunakan kuota pusat (jika tersedia).</p>
+                <h2 className="text-xl font-bold mb-3 flex items-center gap-2"><Settings className="text-blue-600" /> Pengaturan AI Provider & API Key</h2>
+                <p className="text-xs text-gray-600 mb-4">Pilih AI Provider (Google Gemini, OpenAI, DeepSeek, Groq, atau OpenRouter) dan masukkan API Key Anda.</p>
                 
+                <div className="mb-3">
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">Pilih AI Provider:</label>
+                    <select
+                        value={aiProvider}
+                        onChange={(e) => {
+                          setAiProvider(e.target.value);
+                          localStorage.setItem('ai_provider', e.target.value);
+                          setTestResult(null);
+                        }}
+                        className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg text-sm font-medium focus:bg-white focus:outline-none focus:border-blue-500"
+                    >
+                        <option value="gemini">Google Gemini (Gemini 1.5 Flash / Pro)</option>
+                        <option value="openai">OpenAI (GPT-4o-mini / GPT-4o)</option>
+                        <option value="deepseek">DeepSeek (DeepSeek Chat V3)</option>
+                        <option value="groq">Groq (Llama 3.3 70B)</option>
+                        <option value="openrouter">OpenRouter (Universal Multi-Model)</option>
+                    </select>
+                </div>
+
                 <div className="relative mb-3 flex items-center">
                     <input 
                         type={showApiKey ? "text" : "password"} 
@@ -731,7 +751,7 @@ export default function App() {
                           setTestResult(null);
                         }}
                         className="w-full p-3 pl-10 pr-10 border border-gray-300 rounded-lg text-sm"
-                        placeholder="Masukkan Gemini API Key..."
+                        placeholder={`Masukkan ${aiProvider.toUpperCase()} API Key...`}
                     />
                     <Key size={18} className="absolute left-3 top-3.5 text-gray-400" />
                     <button 
@@ -753,7 +773,7 @@ export default function App() {
                           }
                           setIsTestingKey(true);
                           setTestResult(null);
-                          const res = await testApiKey(userGeminiKey);
+                          const res = await testApiKey(userGeminiKey, aiProvider);
                           setTestResult(res);
                           setIsTestingKey(false);
                         }}
@@ -777,20 +797,24 @@ export default function App() {
                 )}
 
                 <div className="mb-4 text-[11px] text-slate-500 bg-slate-50 p-2.5 rounded-lg border border-slate-200 leading-relaxed">
-                  💡 <strong>Petunjuk API Key yang Valid:</strong><br/>
-                  • Harus diawali dengan prefiks <strong>AIzaSy...</strong><br/>
-                  • Diambil dari <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline font-medium">Google AI Studio</a>.<br/>
-                  • Pastikan tidak ada spasi ekstra.
+                  💡 <strong>Petunjuk API Key {aiProvider.toUpperCase()}:</strong><br/>
+                  {aiProvider === 'gemini' && <>• Harus diawali prefiks <strong>AIzaSy...</strong> dari <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">Google AI Studio</a>.</>}
+                  {aiProvider === 'openai' && <>• Biasanya diawali prefiks <strong>sk-...</strong> dari <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">OpenAI Platform</a>.</>}
+                  {aiProvider === 'deepseek' && <>• Biasanya diawali prefiks <strong>sk-...</strong> dari <a href="https://platform.deepseek.com/" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">DeepSeek Platform</a>.</>}
+                  {aiProvider === 'groq' && <>• Biasanya diawali prefiks <strong>gsk_...</strong> dari <a href="https://console.groq.com/" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">Groq Console</a>.</>}
+                  {aiProvider === 'openrouter' && <>• Biasanya diawali prefiks <strong>sk-or-...</strong> dari <a href="https://openrouter.ai/keys" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">OpenRouter</a>.</>}
                 </div>
                 
                 <div className="flex gap-3 justify-end">
-                     <button onClick={() => setShowSettings(false)} className="px-4 py-2 bg-gray-200 rounded-lg font-medium">Batal</button>
+                     <button onClick={() => setShowSettings(false)} className="px-4 py-2 bg-gray-200 rounded-lg font-medium text-sm">Batal</button>
                      <button onClick={async () => {
+                         localStorage.setItem('ai_provider', aiProvider);
                          if (userGeminiKey.trim() === "") {
+                             localStorage.removeItem('user_ai_api_key');
                              localStorage.removeItem('user_gemini_api_key');
                          } else {
+                             localStorage.setItem('user_ai_api_key', userGeminiKey);
                              localStorage.setItem('user_gemini_api_key', userGeminiKey);
-                             // Save to DB if activated
                              const creds = getSavedCredentials();
                              if (creds && creds.email) {
                                  try {
@@ -799,9 +823,9 @@ export default function App() {
                              }
                          }
                          setShowSettings(false);
-                         setToastMessage("API Key berhasil diperbarui!");
+                         setToastMessage("Pengaturan AI berhasil diperbarui!");
                          setTimeout(() => setToastMessage(null), 3000);
-                     }} className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium">Simpan</button>
+                     }} className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium text-sm">Simpan</button>
                 </div>
             </div>
         </div>
