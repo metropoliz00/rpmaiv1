@@ -409,8 +409,11 @@ export const ActivationScreen: React.FC<ActivationScreenProps> = ({ onActivated 
                     </div>
                   )}
 
-                  <p className="text-[10px] text-slate-500 mt-1.5 italic">
-                    Dapatkan API Key di <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Google AI Studio</a>. API Key akan disimpan di sistem.
+                  <p className="text-[11px] text-slate-500 mt-1.5 leading-relaxed">
+                    💡 <strong>Petunjuk API Key yang Valid:</strong><br/>
+                    • Harus diawali dengan prefiks <strong>AIzaSy...</strong><br/>
+                    • Dibuat khusus dari <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline font-medium">Google AI Studio</a>.<br/>
+                    • Pastikan tidak ada spasi di awal atau akhir saat menyalin (copy-paste).
                   </p>
                 </div>
               )}

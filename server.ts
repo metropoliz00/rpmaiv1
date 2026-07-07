@@ -77,6 +77,10 @@ app.post("/api/gemini/test", async (req, res) => {
       return res.status(400).json({ success: false, error: "API Key kosong atau tidak valid." });
     }
 
+    if (!cleanKey.startsWith("AIzaSy")) {
+      return res.status(400).json({ success: false, error: "Format API Key Gemini tidak valid. API Key Google AI Studio yang valid harus diawali dengan 'AIzaSy'." });
+    }
+
     const ai = new GoogleGenAI({
       apiKey: cleanKey,
       httpOptions: {
@@ -84,7 +88,7 @@ app.post("/api/gemini/test", async (req, res) => {
       }
     });
 
-    const modelsToTry = ['gemini-2.5-flash', 'gemini-1.5-flash', 'gemini-2.5-pro'];
+    const modelsToTry = ['gemini-1.5-flash', 'gemini-1.5-pro'];
     let success = false;
     let lastErr: any = null;
 

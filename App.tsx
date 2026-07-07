@@ -775,6 +775,13 @@ export default function App() {
                     </div>
                   </div>
                 )}
+
+                <div className="mb-4 text-[11px] text-slate-500 bg-slate-50 p-2.5 rounded-lg border border-slate-200 leading-relaxed">
+                  💡 <strong>Petunjuk API Key yang Valid:</strong><br/>
+                  • Harus diawali dengan prefiks <strong>AIzaSy...</strong><br/>
+                  • Diambil dari <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline font-medium">Google AI Studio</a>.<br/>
+                  • Pastikan tidak ada spasi ekstra.
+                </div>
                 
                 <div className="flex gap-3 justify-end">
                      <button onClick={() => setShowSettings(false)} className="px-4 py-2 bg-gray-200 rounded-lg font-medium">Batal</button>
