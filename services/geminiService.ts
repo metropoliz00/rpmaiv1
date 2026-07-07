@@ -122,6 +122,23 @@ export const generateContent = async (prompt: string, userApiKey?: string | null
   }
 };
 
+export const testApiKey = async (apiKey: string): Promise<{ success: boolean; message: string }> => {
+  try {
+    const response = await fetch("/api/gemini/test", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ apiKey }),
+    });
+    const data = await response.json();
+    if (!response.ok || !data.success) {
+      return { success: false, message: data.error || "API Key tidak valid atau gagal terhubung." };
+    }
+    return { success: true, message: data.message || "API Key valid dan terhubung dengan sukses!" };
+  } catch (error: any) {
+    return { success: false, message: error.message || "Gagal menguji koneksi API Key." };
+  }
+};
+
 export const buildBulkPrompts = (type: 'rpm' | 'lampiran', formData: RPMData): string => {
   const baseContext = `
     Konteks Pembelajaran:

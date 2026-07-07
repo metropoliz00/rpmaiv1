@@ -3,13 +3,13 @@ import {
   Bot, ChevronRight, ChevronLeft, Save, Edit3, File, Presentation, 
   FileText, List, CheckSquare, Layers, Copy, FileDown, CheckCircle, Printer,
   UserCircle, X, MapPin, Briefcase, GraduationCap, Settings, LogOut, Key, Mail, Lock, Eye, EyeOff, ExternalLink, Trash2,
-  MessageCircle
+  MessageCircle, Sparkles, AlertTriangle
 } from 'lucide-react';
 import { Step1Identitas, Step2Konten, Step3Detail } from './components/FormSteps';
 import { RPMDocument } from './components/Preview';
 import { Button } from './components/UI';
 import { initialFormData, RPMData, RubrikData, LKMData } from './types';
-import { generateContent, cleanJSON, buildBulkPrompts, buildPrompt } from './services/geminiService';
+import { generateContent, cleanJSON, buildBulkPrompts, buildPrompt, testApiKey } from './services/geminiService';
 import { ActivationScreen } from './components/ActivationScreen';
 import { checkIsActivated, clearCredentials, getSavedCredentials, saveCredentials, checkUserOnDb, updateUserGeminiKeyOnDb } from './services/licenseService';
 
@@ -30,6 +30,8 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [showApiKey, setShowApiKey] = useState(false);
   const [userGeminiKey, setUserGeminiKey] = useState(localStorage.getItem('user_gemini_api_key') || '');
+  const [isTestingKey, setIsTestingKey] = useState(false);
+  const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
 
   // Load Gemini Key from DB on activation
   React.useEffect(() => {
@@ -720,12 +722,15 @@ export default function App() {
                 <h2 className="text-xl font-bold mb-4 flex items-center gap-2"><Settings className="text-blue-600" /> Pengaturan API Key</h2>
                 <p className="text-sm text-gray-600 mb-4">Masukkan API Key Gemini Anda untuk menggunakan kuota pribadi. Jika dikosongkan, aplikasi akan menggunakan kuota pusat (jika tersedia).</p>
                 
-                <div className="relative mb-6 flex items-center">
+                <div className="relative mb-3 flex items-center">
                     <input 
                         type={showApiKey ? "text" : "password"} 
                         value={userGeminiKey} 
-                        onChange={(e) => setUserGeminiKey(e.target.value)}
-                        className="w-full p-3 pl-10 pr-10 border border-gray-300 rounded-lg"
+                        onChange={(e) => {
+                          setUserGeminiKey(e.target.value);
+                          setTestResult(null);
+                        }}
+                        className="w-full p-3 pl-10 pr-10 border border-gray-300 rounded-lg text-sm"
                         placeholder="Masukkan Gemini API Key..."
                     />
                     <Key size={18} className="absolute left-3 top-3.5 text-gray-400" />
@@ -737,6 +742,39 @@ export default function App() {
                         {showApiKey ? <EyeOff size={18} /> : <Eye size={18} />}
                     </button>
                 </div>
+
+                <div className="mb-4 flex items-center justify-between">
+                    <button
+                        type="button"
+                        onClick={async () => {
+                          if (!userGeminiKey.trim()) {
+                            setTestResult({ success: false, message: "API Key masih kosong." });
+                            return;
+                          }
+                          setIsTestingKey(true);
+                          setTestResult(null);
+                          const res = await testApiKey(userGeminiKey);
+                          setTestResult(res);
+                          setIsTestingKey(false);
+                        }}
+                        disabled={isTestingKey}
+                        className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg border border-slate-300 flex items-center gap-1.5 transition-all"
+                    >
+                      {isTestingKey ? <span className="animate-spin">⏳</span> : <Sparkles size={14} className="text-blue-600" />}
+                      {isTestingKey ? "Menguji Koneksi..." : "Tes Koneksi API"}
+                    </button>
+                    <span className="text-[11px] text-slate-500">Deteksi validitas & koneksi server</span>
+                </div>
+
+                {testResult && (
+                  <div className={`mb-4 p-3 rounded-lg text-xs flex items-start gap-2 ${testResult.success ? 'bg-emerald-50 border border-emerald-200 text-emerald-800' : 'bg-red-50 border border-red-200 text-red-800'}`}>
+                    {testResult.success ? <CheckCircle size={16} className="text-emerald-600 shrink-0 mt-0.5" /> : <AlertTriangle size={16} className="text-red-600 shrink-0 mt-0.5" />}
+                    <div>
+                      <p className="font-bold">{testResult.success ? "API Key Valid & Terhubung!" : "API Key Gagal / Tidak Valid"}</p>
+                      <p className="mt-0.5">{testResult.message}</p>
+                    </div>
+                  </div>
+                )}
                 
                 <div className="flex gap-3 justify-end">
                      <button onClick={() => setShowSettings(false)} className="px-4 py-2 bg-gray-200 rounded-lg font-medium">Batal</button>

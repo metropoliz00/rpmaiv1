@@ -68,6 +68,56 @@ function generateSmartFallback(prompt: string): string {
   return "1. Murid mempelajari konsep materi secara mendalam melalui pendekatan interaktif.\n2. Murid terlibat aktif dalam diskusi kelompok dan pemecahan masalah.\n3. Murid mampu menyimpulkan dan merefleksikan hasil pembelajaran dengan baik.";
 }
 
+// API Route for testing Gemini API key validity and connection
+app.post("/api/gemini/test", async (req, res) => {
+  try {
+    const { apiKey } = req.body;
+    const cleanKey = cleanApiKey(apiKey) || process.env.GEMINI_API_KEY || process.env.API_KEY;
+    if (!cleanKey || cleanKey.trim() === "" || cleanKey.includes("DUMMY")) {
+      return res.status(400).json({ success: false, error: "API Key kosong atau tidak valid." });
+    }
+
+    const ai = new GoogleGenAI({
+      apiKey: cleanKey,
+      httpOptions: {
+        headers: { 'User-Agent': 'aistudio-build' }
+      }
+    });
+
+    const modelsToTry = ['gemini-2.5-flash', 'gemini-1.5-flash', 'gemini-2.5-pro'];
+    let success = false;
+    let lastErr: any = null;
+
+    for (const modelName of modelsToTry) {
+      try {
+        await ai.models.generateContent({
+          model: modelName,
+          contents: [{ role: 'user', parts: [{ text: 'Test connection' }] }]
+        });
+        success = true;
+        break;
+      } catch (err: any) {
+        lastErr = err;
+      }
+    }
+
+    if (!success) {
+      const errMsg = lastErr?.message || "Gagal menghubungkan ke Gemini API.";
+      if (errMsg.includes("403") || errMsg.includes("401") || errMsg.includes("API key not valid") || errMsg.includes("INVALID_ARGUMENT") || errMsg.includes("invalid key")) {
+        return res.status(400).json({ success: false, error: "API Key tidak valid atau tidak memiliki akses (Invalid API Key)." });
+      }
+      if (errMsg.includes("429")) {
+        return res.status(400).json({ success: false, error: "Kuota API Key habis / Terkena Limit 429 Too Many Requests." });
+      }
+      return res.status(400).json({ success: false, error: errMsg });
+    }
+
+    return res.json({ success: true, message: "API Key valid dan berhasil terhubung dengan Gemini AI!" });
+  } catch (error: any) {
+    return res.status(400).json({ success: false, error: error.message || "Gagal menguji API Key." });
+  }
+});
+
 // API Route for Gemini content generation
 app.post("/api/gemini/generate", async (req, res) => {
   try {
