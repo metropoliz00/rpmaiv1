@@ -503,10 +503,10 @@ export default function App() {
             <div className="flex items-center gap-1 shrink-0 ml-auto sm:ml-2 md:hidden">
               <button 
                   onClick={() => setShowSettings(true)} 
-                  className="p-1.5 rounded-full bg-white/10 hover:bg-white/20 transition-all text-blue-100 hover:text-white"
-                  title="Pengaturan API Key"
+                  className={`p-1.5 rounded-full transition-all ${Boolean(userGeminiKey && userGeminiKey.trim() !== "" && !userGeminiKey.includes("DUMMY")) ? 'bg-emerald-500/20 text-emerald-300 hover:text-emerald-200' : 'bg-yellow-500/20 text-yellow-300 hover:text-yellow-200'}`}
+                  title={Boolean(userGeminiKey && userGeminiKey.trim() !== "" && !userGeminiKey.includes("DUMMY")) ? "API Key Aktif: User (Hijau)" : "API Key Aktif: System (Kuning)"}
               >
-                  <Settings size={20} className="sm:w-6 sm:h-6" />
+                  <Key size={20} className={`sm:w-6 sm:h-6 ${Boolean(userGeminiKey && userGeminiKey.trim() !== "" && !userGeminiKey.includes("DUMMY")) ? 'text-emerald-400' : 'text-yellow-400'}`} />
               </button>
               <button 
                   onClick={() => setShowDevInfo(true)} 
@@ -538,10 +538,10 @@ export default function App() {
              <div className="flex items-center gap-1">
                <button 
                    onClick={() => setShowSettings(true)} 
-                   className="p-1.5 rounded-full bg-white/10 hover:bg-white/20 transition-all text-blue-100 hover:text-white"
-                   title="Pengaturan API Key"
+                   className={`p-1.5 rounded-full transition-all ${Boolean(userGeminiKey && userGeminiKey.trim() !== "" && !userGeminiKey.includes("DUMMY")) ? 'bg-emerald-500/20 text-emerald-300 hover:text-emerald-200' : 'bg-yellow-500/20 text-yellow-300 hover:text-yellow-200'}`}
+                   title={Boolean(userGeminiKey && userGeminiKey.trim() !== "" && !userGeminiKey.includes("DUMMY")) ? "API Key Aktif: User (Hijau)" : "API Key Aktif: System (Kuning)"}
                >
-                   <Settings size={20} className="sm:w-6 sm:h-6" />
+                   <Key size={20} className={`sm:w-6 sm:h-6 ${Boolean(userGeminiKey && userGeminiKey.trim() !== "" && !userGeminiKey.includes("DUMMY")) ? 'text-emerald-400' : 'text-yellow-400'}`} />
                </button>
                <button 
                    onClick={() => setShowDevInfo(true)} 
@@ -716,95 +716,49 @@ export default function App() {
         </div>
       )}
 
-      {/* Settings Modal */}
+      {/* Key Status Modal */}
       {showSettings && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in print:hidden">
             <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl relative animate-fade-in-up">
-                <h2 className="text-xl font-bold mb-3 flex items-center gap-2"><Settings className="text-blue-600" /> Pengaturan Google Gemini API Key</h2>
-                <p className="text-xs text-gray-600 mb-4">Masukkan API Key Google Gemini Anda untuk mengaktifkan fitur generate AI.</p>
-
-                <div className="relative mb-3 flex items-center">
-                    <input 
-                        type={showApiKey ? "text" : "password"} 
-                        value={userGeminiKey} 
-                        onChange={(e) => {
-                          setUserGeminiKey(e.target.value);
-                          setTestResult(null);
-                        }}
-                        className="w-full p-3 pl-10 pr-10 border border-gray-300 rounded-lg text-sm"
-                        placeholder="Masukkan API Key Gemini (AIzaSy...)..."
-                    />
-                    <Key size={18} className="absolute left-3 top-3.5 text-gray-400" />
-                    <button 
-                        type="button"
-                        onClick={() => setShowApiKey(!showApiKey)}
-                        className="absolute right-3 top-3.5 text-gray-400 hover:text-gray-600 transition-colors"
-                    >
-                        {showApiKey ? <EyeOff size={18} /> : <Eye size={18} />}
-                    </button>
-                </div>
-
-                <div className="mb-4 flex items-center justify-between">
-                    <button
-                        type="button"
-                        onClick={async () => {
-                          if (!userGeminiKey.trim()) {
-                            setTestResult({ success: false, message: "API Key masih kosong." });
-                            return;
-                          }
-                          setIsTestingKey(true);
-                          setTestResult(null);
-                          const res = await testApiKey(userGeminiKey);
-                          setTestResult(res);
-                          setIsTestingKey(false);
-                        }}
-                        disabled={isTestingKey}
-                        className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg border border-slate-300 flex items-center gap-1.5 transition-all"
-                    >
-                      {isTestingKey ? <span className="animate-spin">⏳</span> : <Sparkles size={14} className="text-blue-600" />}
-                      {isTestingKey ? "Menguji Koneksi..." : "Tes Koneksi API"}
-                    </button>
-                    <span className="text-[11px] text-slate-500">Deteksi validitas & koneksi server</span>
-                </div>
-
-                {testResult && (
-                  <div className={`mb-4 p-3 rounded-lg text-xs flex items-start gap-2 ${testResult.success ? 'bg-emerald-50 border border-emerald-200 text-emerald-800' : 'bg-red-50 border border-red-200 text-red-800'}`}>
-                    {testResult.success ? <CheckCircle size={16} className="text-emerald-600 shrink-0 mt-0.5" /> : <AlertTriangle size={16} className="text-red-600 shrink-0 mt-0.5" />}
-                    <div>
-                      <p className="font-bold">{testResult.success ? "API Key Valid & Terhubung!" : "API Key Gagal / Tidak Valid"}</p>
-                      <p className="mt-0.5">{testResult.message}</p>
+                <div className="flex items-center gap-3 mb-4">
+                    <div className={`p-3 rounded-xl ${Boolean(userGeminiKey && userGeminiKey.trim() !== "" && !userGeminiKey.includes("DUMMY")) ? 'bg-emerald-100 text-emerald-600' : 'bg-yellow-100 text-yellow-600'}`}>
+                        <Key size={28} />
                     </div>
-                  </div>
-                )}
-
-                <div className="mb-4 text-[11px] text-slate-500 bg-slate-50 p-2.5 rounded-lg border border-slate-200 leading-relaxed">
-                  💡 <strong>Petunjuk Google Gemini API Key:</strong><br/>
-                  • Harus diawali dengan prefiks <strong>AIzaSy...</strong><br/>
-                  • Dibuat khusus dari <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline font-medium">Google AI Studio</a>.<br/>
-                  • Pastikan tidak ada spasi di awal atau akhir saat menyalin (copy-paste).
+                    <div>
+                        <h2 className="text-lg font-bold text-slate-900">Status Google Gemini API Key</h2>
+                        <p className="text-xs text-slate-500">Informasi sumber API Key yang aktif pada aplikasi</p>
+                    </div>
                 </div>
-                
-                <div className="flex gap-3 justify-end">
-                     <button onClick={() => setShowSettings(false)} className="px-4 py-2 bg-gray-200 rounded-lg font-medium text-sm">Batal</button>
-                     <button onClick={async () => {
-                         localStorage.setItem('ai_provider', aiProvider);
-                         if (userGeminiKey.trim() === "") {
-                             localStorage.removeItem('user_ai_api_key');
-                             localStorage.removeItem('user_gemini_api_key');
-                         } else {
-                             localStorage.setItem('user_ai_api_key', userGeminiKey);
-                             localStorage.setItem('user_gemini_api_key', userGeminiKey);
-                             const creds = getSavedCredentials();
-                             if (creds && creds.email) {
-                                 try {
-                                     await updateUserGeminiKeyOnDb(creds.email, userGeminiKey);
-                                 } catch (e) { console.error("Gagal simpan ke cloud:", e); }
-                             }
-                         }
-                         setShowSettings(false);
-                         setToastMessage("Pengaturan AI berhasil diperbarui!");
-                         setTimeout(() => setToastMessage(null), 3000);
-                     }} className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium text-sm">Simpan</button>
+
+                <div className={`p-4 rounded-xl mb-4 border ${Boolean(userGeminiKey && userGeminiKey.trim() !== "" && !userGeminiKey.includes("DUMMY")) ? 'bg-emerald-50 border-emerald-200 text-emerald-900' : 'bg-yellow-50 border-yellow-200 text-yellow-900'}`}>
+                    <div className="flex items-center gap-2 mb-2">
+                        <span className={`w-3 h-3 rounded-full ${Boolean(userGeminiKey && userGeminiKey.trim() !== "" && !userGeminiKey.includes("DUMMY")) ? 'bg-emerald-500 animate-pulse' : 'bg-yellow-500 animate-pulse'}`}></span>
+                        <span className="font-bold text-sm">
+                            {Boolean(userGeminiKey && userGeminiKey.trim() !== "" && !userGeminiKey.includes("DUMMY")) ? "Kunci Hijau: Menggunakan API Key Pribadi Anda" : "Kunci Kuning: Menggunakan System API Key (Vercel)"}
+                        </span>
+                    </div>
+                    <p className="text-xs leading-relaxed opacity-90">
+                        {Boolean(userGeminiKey && userGeminiKey.trim() !== "" && !userGeminiKey.includes("DUMMY"))
+                            ? "Aplikasi saat ini menggunakan API Key Google Gemini pribadi Anda yang tersimpan aman di database server."
+                            : "Aplikasi saat ini menggunakan System API Key yang ditanamkan pada environment Vercel."
+                        }
+                    </p>
+                </div>
+
+                <div className="mb-4 text-xs text-slate-600 bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-1.5">
+                    <p className="font-semibold text-slate-700">🔒 Kebijakan Keamanan API Key:</p>
+                    <p className="text-[11px] leading-relaxed text-slate-500">
+                        Sesuai ketentuan sistem, pengguna tidak dapat mengubah atau menginput API Key secara manual langsung dari antarmuka aplikasi. API Key dikelola saat pendaftaran akun atau melalui database server.
+                    </p>
+                </div>
+
+                <div className="flex justify-end">
+                     <button 
+                         onClick={() => setShowSettings(false)} 
+                         className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium text-sm transition-all shadow-sm"
+                     >
+                         Tutup
+                     </button>
                 </div>
             </div>
         </div>

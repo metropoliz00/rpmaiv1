@@ -183,13 +183,20 @@ export const ActivationScreen: React.FC<ActivationScreenProps> = ({ onActivated 
     e.preventDefault();
     setActivationError(null);
     const cleanEmail = email.trim();
+    const cleanApiKey = userGeminiKey.trim();
+
     if (!cleanEmail) {
       setActivationError("Email Pengguna wajib diisi.");
       return;
     }
+
+    if (!cleanApiKey) {
+      setActivationError("API Key Gemini wajib diisi saat pendaftaran agar tersimpan di database.");
+      return;
+    }
     
     try {
-      await registerUserOnDb(cleanEmail, "", false);
+      await registerUserOnDb(cleanEmail, cleanApiKey, false);
       setShowRegistrationPopup(true);
     } catch (err) {
       console.error(err);
@@ -350,6 +357,25 @@ export const ActivationScreen: React.FC<ActivationScreenProps> = ({ onActivated 
                   required
                 />
               </div>
+
+              {userStatus === 'not_found' && (
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5 flex items-center gap-2">
+                    <Key size={14} className="text-slate-500" /> API Key Gemini Pengguna <span className="text-red-500">*</span>
+                  </label>
+                  <input 
+                    type="password"
+                    value={userGeminiKey}
+                    onChange={(e) => setUserGeminiKey(e.target.value)}
+                    placeholder="Masukkan API Key Gemini Anda (AIzaSy...)"
+                    className="w-full bg-slate-50/50 border border-slate-200 rounded-xl px-4 py-3 text-slate-900 placeholder-slate-400 focus:bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 transition-all text-sm shadow-sm font-mono"
+                    required
+                  />
+                  <p className="text-[11px] text-slate-500 mt-1">
+                    Wajib diisi dan disimpan ke database agar Anda dapat menggunakan AI dengan API key milik Anda sendiri.
+                  </p>
+                </div>
+              )}
 
 
 
