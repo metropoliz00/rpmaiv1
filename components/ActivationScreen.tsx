@@ -373,7 +373,7 @@ export const ActivationScreen: React.FC<ActivationScreenProps> = ({ onActivated 
                       setUserGeminiKey(e.target.value);
                       setActivationKeyTestResult(null);
                     }}
-                    placeholder="Masukkan API Key Gemini Anda"
+                    placeholder="Masukkan API Key Gemini Anda (AIzaSy...)"
                     className="w-full bg-slate-50/50 border border-slate-200 rounded-xl px-4 py-3 text-slate-900 placeholder-slate-400 focus:bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 transition-all text-sm shadow-sm"
                     required
                   />
@@ -410,7 +410,7 @@ export const ActivationScreen: React.FC<ActivationScreenProps> = ({ onActivated 
                   )}
 
                   <p className="text-[11px] text-slate-500 mt-1.5 leading-relaxed">
-                    💡 <strong>Petunjuk API Key yang Valid:</strong><br/>
+                    💡 <strong>Petunjuk API Key Gemini yang Valid:</strong><br/>
                     • Harus diawali dengan prefiks <strong>AIzaSy...</strong><br/>
                     • Dibuat khusus dari <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline font-medium">Google AI Studio</a>.<br/>
                     • Pastikan tidak ada spasi di awal atau akhir saat menyalin (copy-paste).
