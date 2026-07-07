@@ -240,6 +240,13 @@ const metodeOptions = [
 ];
 
 const pendekatanOptions = ["Kontekstual", "Saintifik", "Gamifikasi", "Kooperatif", "Problem Solving", "Lainnya"];
+const modelOptions = [
+  "Problem Based Learning (PBL)",
+  "Project Based Learning (PjBL)",
+  "Discovery Learning",
+  "Inquiry Learning",
+  "Cooperative Learning"
+];
 
 export const Step3Detail: React.FC<Step3Props> = ({ formData, setFormData, generateField, onGenerateBulkRPM, onGenerateBulkLampiran, loaders }) => {
     const togglePreset = (field: 'alatDigital' | 'lingkunganBelajar' | 'lintasDisiplin' | 'kemitraan', value: string) => {
@@ -367,18 +374,15 @@ export const Step3Detail: React.FC<Step3Props> = ({ formData, setFormData, gener
                 </InputGroup>
 
                 <InputGroup label="Model Pembelajaran">
-                    <select className="w-full p-3 border border-gray-300 rounded-lg bg-white" value={formData.modelPembelajaran === 'Problem Based Learning (PBL)' || formData.modelPembelajaran === 'Project Based Learning (PjBL)' || formData.modelPembelajaran === 'Discovery Learning' || formData.modelPembelajaran === 'Inquiry Learning' || formData.modelPembelajaran === 'Cooperative Learning' ? formData.modelPembelajaran : 'Lainnya'} onChange={(e) => {
+                    <select className="w-full p-3 border border-gray-300 rounded-lg bg-white" value={modelOptions.includes(formData.modelPembelajaran) ? formData.modelPembelajaran : (formData.modelPembelajaran ? 'Lainnya' : '')} onChange={(e) => {
                         if (e.target.value === 'Lainnya') setFormData({...formData, modelPembelajaran: ''});
                         else setFormData({...formData, modelPembelajaran: e.target.value});
                     }}>
-                        <option value="Problem Based Learning (PBL)">Problem Based Learning (PBL)</option>
-                        <option value="Project Based Learning (PjBL)">Project Based Learning (PjBL)</option>
-                        <option value="Discovery Learning">Discovery Learning</option>
-                        <option value="Inquiry Learning">Inquiry Learning</option>
-                        <option value="Cooperative Learning">Cooperative Learning</option>
+                        <option value="">Pilihan Model</option>
+                        {modelOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
                         <option value="Lainnya">Lainnya</option>
                     </select>
-                    {!(formData.modelPembelajaran === 'Problem Based Learning (PBL)' || formData.modelPembelajaran === 'Project Based Learning (PjBL)' || formData.modelPembelajaran === 'Discovery Learning' || formData.modelPembelajaran === 'Inquiry Learning' || formData.modelPembelajaran === 'Cooperative Learning') && (
+                    {!modelOptions.includes(formData.modelPembelajaran) && formData.modelPembelajaran !== '' && (
                         <input type="text" className="w-full p-3 mt-2 border border-gray-300 rounded-lg" value={formData.modelPembelajaran} onChange={(e) => setFormData({...formData, modelPembelajaran: e.target.value})} placeholder="Masukkan model pembelajaran lainnya" />
                     )}
                 </InputGroup>

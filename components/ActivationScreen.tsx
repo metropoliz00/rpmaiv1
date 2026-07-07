@@ -65,6 +65,7 @@ export const ActivationScreen: React.FC<ActivationScreenProps> = ({ onActivated 
   // Copy states
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
   const [successToast, setSuccessToast] = useState<string | null>(null);
+  const [alertModalMessage, setAlertModalMessage] = useState<string | null>(null);
 
   // Load registered users and admin password on mount
   useEffect(() => {
@@ -229,7 +230,7 @@ export const ActivationScreen: React.FC<ActivationScreenProps> = ({ onActivated 
     const cleanEmail = newEmail.trim();
 
     if (!cleanEmail) {
-      alert("Harap lengkapi email.");
+      setAlertModalMessage("Harap lengkapi email.");
       return;
     }
 
@@ -338,7 +339,7 @@ export const ActivationScreen: React.FC<ActivationScreenProps> = ({ onActivated 
                 <AlertTriangle size={16} className="shrink-0 text-amber-600 mt-0.5" />
                 <div className="leading-relaxed">
                   <p className="font-semibold text-amber-600">Email yang sudah masuk sistem menunggu diaktifkan oleh admin.</p>
-                  <p className="text-slate-600 mt-1 text-[11px] font-mono font-medium">WhatsApp: 085604431706</p>
+                  <p className="text-slate-600 mt-1 text-[11px] font-mono font-medium">WhatsApp: <a href="https://wa.me/6285604431706" target="_blank" rel="noopener noreferrer" className="text-emerald-700 underline font-bold hover:text-emerald-800">085604431706</a></p>
                 </div>
               </div>
             ) : null}
@@ -689,14 +690,11 @@ export const ActivationScreen: React.FC<ActivationScreenProps> = ({ onActivated 
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-slate-500">WhatsApp:</span>
-                <span className="text-right font-mono font-bold text-emerald-600 flex items-center gap-1">
+                <a href="https://wa.me/6285604431706" target="_blank" rel="noopener noreferrer" className="text-right font-mono font-bold text-emerald-600 flex items-center gap-1 hover:underline">
                   <MessageCircle size={14} /> 085604431706
-                </span>
+                </a>
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-slate-500">Versi:</span>
-                <span className="font-mono text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded text-[10px] border border-blue-100">v1.2.0 (Pro)</span>
-              </div>
+
             </div>
 
             <div className="space-y-3">
@@ -764,7 +762,7 @@ export const ActivationScreen: React.FC<ActivationScreenProps> = ({ onActivated 
                 </p>
               </div>
               <p className="text-xs text-slate-500 font-medium">
-                Hubungi <span className="font-mono text-emerald-600 font-bold bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100">085604431706</span>
+                Hubungi <a href="https://wa.me/6285604431706" target="_blank" rel="noopener noreferrer" className="font-mono text-emerald-600 font-bold bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100 hover:underline inline-flex items-center gap-1">085604431706</a>
               </p>
             </div>
             <button
@@ -777,6 +775,31 @@ export const ActivationScreen: React.FC<ActivationScreenProps> = ({ onActivated 
               Tutup
             </button>
           </div>
+        </div>
+      )}
+
+      {/* Alert Modal Popup */}
+      {alertModalMessage && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in print:hidden">
+            <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl relative animate-fade-in-up border border-slate-100">
+                <div className="flex items-start gap-4 mb-5">
+                    <div className="p-3 rounded-2xl bg-amber-50 text-amber-600 shrink-0 border border-amber-100">
+                        <AlertTriangle size={24} />
+                    </div>
+                    <div>
+                        <h3 className="text-base font-bold text-slate-900 mb-1">Perhatian</h3>
+                        <p className="text-sm text-slate-600 leading-relaxed">{alertModalMessage}</p>
+                    </div>
+                </div>
+                <div className="flex justify-end">
+                     <button 
+                         onClick={() => setAlertModalMessage(null)} 
+                         className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium text-sm transition-all shadow-sm"
+                     >
+                         Mengerti
+                     </button>
+                </div>
+            </div>
         </div>
       )}
     </div>

@@ -26,6 +26,7 @@ export default function App() {
   const [step, setStep] = useState(1);
   const [showPreview, setShowPreview] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [alertModalMessage, setAlertModalMessage] = useState<string | null>(null);
   const [showDevInfo, setShowDevInfo] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showApiKey, setShowApiKey] = useState(false);
@@ -152,7 +153,7 @@ export default function App() {
 
   const handleGenerateField = async (fieldName: string, targetField: string = fieldName) => {
       if (!formData.materiPokok || !formData.capaianPembelajaran) {
-          alert("Mohon isi Materi Pokok dan CP terlebih dahulu.");
+          setAlertModalMessage("Mohon isi Materi Pokok dan CP terlebih dahulu.");
           return;
       }
 
@@ -179,7 +180,7 @@ export default function App() {
           }
       } catch (e: any) {
           console.error(e);
-          alert("Gagal generate AI: " + (e.message || e));
+          setAlertModalMessage("Gagal generate AI: " + (e.message || e));
       } finally {
           setLoaders(prev => ({ ...prev, [fieldName]: false }));
       }
@@ -237,7 +238,7 @@ export default function App() {
         const cleaned = res.replace(/```html/g, '').replace(/```/g, '').trim();
         setGeneratedMateriContent(cleaned);
         setFormData(prev => ({ ...prev, materiContent: cleaned }));
-    } catch(e: any) { alert("Gagal generate materi: " + (e.message || e)); }
+    } catch(e: any) { setAlertModalMessage("Gagal generate materi: " + (e.message || e)); }
     setLoaders(prev => ({ ...prev, materi: false }));
   };
 
@@ -324,7 +325,7 @@ export default function App() {
         const cleaned = result.replace(/```html/g, '').replace(/```/g, '').trim();
         setGeneratedSoalContent(cleaned);
         setFormData(prev => ({ ...prev, soalContent: cleaned }));
-     } catch (error: any) { alert("Gagal generate soal: " + (error.message || error)); }
+     } catch (error: any) { setAlertModalMessage("Gagal generate soal: " + (error.message || error)); }
      setIsGeneratingSoal(false);
   };
 
@@ -342,7 +343,7 @@ export default function App() {
             setGeneratedRubrikContent(data);
             setFormData(prev => ({ ...prev, rubrikContent: data }));
         }
-    } catch(e: any) { alert("Gagal generate rubrik: " + (e.message || e)); }
+    } catch(e: any) { setAlertModalMessage("Gagal generate rubrik: " + (e.message || e)); }
     setLoaders(prev => ({ ...prev, rubrik: false }));
   };
 
@@ -398,7 +399,7 @@ export default function App() {
             setGeneratedLKMContent(json);
             setFormData(prev => ({ ...prev, lkmContent: json }));
         }
-    } catch(e: any) { alert("Gagal generate LKM: " + (e.message || e)); }
+    } catch(e: any) { setAlertModalMessage("Gagal generate LKM: " + (e.message || e)); }
     setLoaders(prev => ({ ...prev, lkm: false }));
   };
 
@@ -567,6 +568,18 @@ export default function App() {
         <div className="max-w-5xl mx-auto">
           {!showPreview ? (
             <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-blue-50 p-4 sm:p-8">
+                <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-100">
+                    <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Langkah {step} dari 3</span>
+                    <Button 
+                      onClick={handleClearData} 
+                      variant="outline" 
+                      size="sm"
+                      className="text-red-600 border-red-200 hover:border-red-400 hover:bg-red-50 text-xs py-1"
+                      icon={Trash2}
+                    >
+                      Kosongkan Form
+                    </Button>
+                </div>
                 <form>
                     {step === 1 && <Step1Identitas formData={formData} setFormData={setFormData} />}
                     {step === 2 && <Step2Konten formData={formData} setFormData={setFormData} uploadedFile={uploadedFile} setUploadedFile={setUploadedFile} additionalContext={additionalContext} setAdditionalContext={setAdditionalContext} generateField={handleGenerateField} loaders={loaders} />}
@@ -577,14 +590,6 @@ export default function App() {
                         {step > 1 && (
                           <Button onClick={() => setStep(step - 1)} variant="secondary" icon={ChevronLeft} className="w-full sm:w-auto">Kembali</Button>
                         )}
-                        <Button 
-                          onClick={handleClearData} 
-                          variant="outline" 
-                          className="text-red-600 border-red-200 hover:border-red-400 hover:bg-red-50 w-full sm:w-auto"
-                          icon={Trash2}
-                        >
-                          Kosongkan Form
-                        </Button>
                     </div>
                     {step < 3 ? (
                       <Button onClick={() => setStep(step + 1)} variant="primary" className="flex-row-reverse w-full sm:w-auto">Lanjut <ChevronRight size={20} /></Button>
@@ -669,7 +674,9 @@ export default function App() {
                             <MessageCircle size={18} className="text-green-500 mt-0.5 shrink-0" />
                             <div>
                                 <p className="font-semibold text-gray-700">WhatsApp</p>
-                                <p className="text-gray-500 font-mono font-bold">085604431706</p>
+                                <a href="https://wa.me/6285604431706" target="_blank" rel="noopener noreferrer" className="text-emerald-600 font-mono font-bold hover:underline inline-flex items-center gap-1">
+                                    085604431706
+                                </a>
                             </div>
                         </div>
                     </div>
@@ -730,28 +737,6 @@ export default function App() {
                     </div>
                 </div>
 
-                <div className={`p-4 rounded-xl mb-4 border ${Boolean(userGeminiKey && userGeminiKey.trim() !== "" && !userGeminiKey.includes("DUMMY")) ? 'bg-emerald-50 border-emerald-200 text-emerald-900' : 'bg-yellow-50 border-yellow-200 text-yellow-900'}`}>
-                    <div className="flex items-center gap-2 mb-2">
-                        <span className={`w-3 h-3 rounded-full ${Boolean(userGeminiKey && userGeminiKey.trim() !== "" && !userGeminiKey.includes("DUMMY")) ? 'bg-emerald-500 animate-pulse' : 'bg-yellow-500 animate-pulse'}`}></span>
-                        <span className="font-bold text-sm">
-                            {Boolean(userGeminiKey && userGeminiKey.trim() !== "" && !userGeminiKey.includes("DUMMY")) ? "Kunci Hijau: Menggunakan API Key Pribadi Anda" : "Kunci Kuning: Menggunakan System API Key (Vercel)"}
-                        </span>
-                    </div>
-                    <p className="text-xs leading-relaxed opacity-90">
-                        {Boolean(userGeminiKey && userGeminiKey.trim() !== "" && !userGeminiKey.includes("DUMMY"))
-                            ? "Aplikasi saat ini menggunakan API Key Google Gemini pribadi Anda yang tersimpan aman di database server."
-                            : "Aplikasi saat ini menggunakan System API Key yang ditanamkan pada environment Vercel."
-                        }
-                    </p>
-                </div>
-
-                <div className="mb-4 text-xs text-slate-600 bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-1.5">
-                    <p className="font-semibold text-slate-700">🔒 Kebijakan Keamanan API Key:</p>
-                    <p className="text-[11px] leading-relaxed text-slate-500">
-                        Sesuai ketentuan sistem, pengguna tidak dapat mengubah atau menginput API Key secara manual langsung dari antarmuka aplikasi. API Key dikelola saat pendaftaran akun atau melalui database server.
-                    </p>
-                </div>
-
                 <div className="flex justify-end">
                      <button 
                          onClick={() => setShowSettings(false)} 
@@ -765,6 +750,31 @@ export default function App() {
       )}
 
       {toastMessage && <div className="fixed bottom-10 right-10 bg-gray-900 text-white px-6 py-3 rounded-lg shadow-2xl flex items-center gap-3 animate-fade-in z-50"><CheckCircle size={20} className="text-green-400" /><span>{toastMessage}</span></div>}
+
+      {/* Alert Modal Popup */}
+      {alertModalMessage && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in print:hidden">
+            <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl relative animate-fade-in-up border border-slate-100">
+                <div className="flex items-start gap-4 mb-5">
+                    <div className="p-3 rounded-2xl bg-amber-50 text-amber-600 shrink-0 border border-amber-100">
+                        <AlertTriangle size={24} />
+                    </div>
+                    <div>
+                        <h3 className="text-base font-bold text-slate-900 mb-1">Perhatian</h3>
+                        <p className="text-sm text-slate-600 leading-relaxed">{alertModalMessage}</p>
+                    </div>
+                </div>
+                <div className="flex justify-end">
+                     <button 
+                         onClick={() => setAlertModalMessage(null)} 
+                         className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium text-sm transition-all shadow-sm"
+                     >
+                         Mengerti
+                     </button>
+                </div>
+            </div>
+        </div>
+      )}
     </div>
   );
 }
