@@ -20,8 +20,6 @@ interface Step2Props extends StepProps {
 
 interface Step3Props extends StepProps {
   generateField: (field: string, target?: string) => void;
-  onGenerateBulkRPM: () => void;
-  onGenerateBulkLampiran: () => void;
   loaders: Record<string, boolean>;
 }
 
@@ -622,13 +620,24 @@ export const Step3Detail: React.FC<Step3Props> = ({ formData, setFormData, gener
                      </div>
                  )}
 
-                 <InputGroup label="Kegiatan Awal" subLabel="Pendahuluan, Apersepsi, Pemantik">
+                 <div className="flex justify-between items-center mb-2">
+                     <label className="block text-sm font-bold text-gray-700">Kegiatan Awal</label>
+                     <button type="button" onClick={() => generateField('kegiatanAwal')} disabled={loaders['kegiatanAwal']} className="px-3 py-1 bg-purple-600 text-white rounded-lg text-xs font-semibold hover:bg-purple-700 flex items-center gap-1.5 disabled:opacity-50">
+                         {loaders['kegiatanAwal'] ? <Loader2 size={14} className="animate-spin"/> : <Sparkles size={14}/>}
+                         Generate Awal AI
+                     </button>
+                 </div>
+                 <InputGroup label="" subLabel="Pendahuluan, Apersepsi, Pemantik">
                     <textarea className="w-full p-3 border border-gray-300 rounded-lg h-40 font-mono text-sm" value={formData.kegiatanAwal} onChange={(e) => setFormData({...formData, kegiatanAwal: e.target.value})} placeholder="Masukkan kegiatan awal" />
                 </InputGroup>
                 
                 <div className="border-t pt-4">
                     <div className="flex justify-between items-center mb-4">
                          <label className="block text-sm font-bold text-gray-700">Kegiatan Inti</label>
+                         <button type="button" onClick={() => generateField('kegiatanInti')} disabled={loaders['kegiatanInti']} className="px-3 py-1 bg-purple-600 text-white rounded-lg text-xs font-semibold hover:bg-purple-700 flex items-center gap-1.5 disabled:opacity-50">
+                             {loaders['kegiatanInti'] ? <Loader2 size={14} className="animate-spin"/> : <Sparkles size={14}/>}
+                             Generate Inti AI
+                         </button>
                     </div>
                     
                     <div className="space-y-4 pl-4 border-l-4 border-blue-100">
@@ -644,28 +653,16 @@ export const Step3Detail: React.FC<Step3Props> = ({ formData, setFormData, gener
                     </div>
                 </div>
 
-                <InputGroup label="Kegiatan Penutup" subLabel="Refleksi, Apresiasi, Tindak Lanjut">
+                <div className="flex justify-between items-center mb-2 mt-4">
+                    <label className="block text-sm font-bold text-gray-700">Kegiatan Penutup</label>
+                    <button type="button" onClick={() => generateField('kegiatanPenutup')} disabled={loaders['kegiatanPenutup']} className="px-3 py-1 bg-purple-600 text-white rounded-lg text-xs font-semibold hover:bg-purple-700 flex items-center gap-1.5 disabled:opacity-50">
+                        {loaders['kegiatanPenutup'] ? <Loader2 size={14} className="animate-spin"/> : <Sparkles size={14}/>}
+                        Generate Penutup AI
+                    </button>
+                </div>
+                <InputGroup label="" subLabel="Refleksi, Apresiasi, Tindak Lanjut">
                     <textarea className="w-full p-3 border border-gray-300 rounded-lg h-40 font-mono text-sm" value={formData.kegiatanPenutup} onChange={(e) => setFormData({...formData, kegiatanPenutup: e.target.value})} placeholder="Masukkan kegiatan penutup" />
                 </InputGroup>
-
-                <div className="p-4 bg-purple-50 border border-purple-100 rounded-xl shadow-sm flex flex-wrap gap-4 justify-center mt-8 animate-fade-in">
-                    <button 
-                        onClick={onGenerateBulkRPM} 
-                            disabled={loaders['rpm']}
-                            className="px-6 py-3 bg-purple-600 text-white rounded-xl text-xs font-bold hover:bg-purple-700 transition-all flex items-center gap-2 shadow-lg disabled:opacity-50"
-                        >
-                            {loaders['rpm'] ? <Loader2 size={16} className="animate-spin"/> : <Sparkles size={16}/>}
-                            Generate Full RPM
-                        </button>
-                        <button 
-                            onClick={onGenerateBulkLampiran} 
-                            disabled={loaders['lampiran']}
-                            className="px-6 py-3 bg-blue-600 text-white rounded-xl text-xs font-bold hover:bg-blue-700 transition-all flex items-center gap-2 shadow-lg disabled:opacity-50"
-                        >
-                            {loaders['lampiran'] ? <Loader2 size={16} className="animate-spin"/> : <Sparkles size={16}/>}
-                            Generate Full Lampiran
-                        </button>
-                </div>
             </div>
         </div>
     );

@@ -17,10 +17,7 @@ interface PreviewProps {
   onGenerateLKM: () => void;
   onGenerateRubrik: () => void;
   onGenerateSoal: () => void;
-  onGenerateBulkRPM: () => void;
-  onGenerateBulkLampiran: () => void;
   isGeneratingSoal: boolean;
-  isGeneratingBulk: boolean;
 }
 
 const HeaderCol = ({ title, rowSpan = 1 }: { title: string; rowSpan?: number }) => (
@@ -139,7 +136,7 @@ export const RPMDocument: React.FC<PreviewProps> = ({
     generatedLKMContent, generatedRubrikContent, generatedSoalContent,
     soalConfig, setSoalConfig, loaders, 
     onGenerateMateri, onGenerateLKM, onGenerateRubrik, onGenerateSoal, 
-    onGenerateBulkRPM, onGenerateBulkLampiran, isGeneratingSoal, isGeneratingBulk
+    isGeneratingSoal
 }) => {
 
     const getAwalMinutes = () => {
@@ -348,24 +345,35 @@ export const RPMDocument: React.FC<PreviewProps> = ({
             )}
 
             {activeDocs.paparan && (
-                <A4Page teacherName={formData.namaPenyusun} className="font-serif text-[11px] leading-snug">
-                    <div className="text-center font-bold text-lg mb-4 border-b-2 border-blue-800 pb-2 text-blue-900 font-sans uppercase">PAPARAN MATERI</div>
-                    <div className="border border-gray-300 p-8 min-h-[500px] bg-white shadow-sm rounded-lg text-inherit">
-                        <h2 className="text-2xl font-bold text-center mb-6 text-blue-800 uppercase">{formData.materiPokok}</h2>
-                        {generatedMateriContent ? (
-                            <div dangerouslySetInnerHTML={{__html: generatedMateriContent}} className="prose max-w-none text-justify leading-relaxed text-inherit" />
-                        ) : (
-                            <div className="prose max-w-none text-justify leading-relaxed">
-                                <p className="mb-4">Materi ajar tentang <strong>{formData.materiPokok}</strong> ini disusun untuk membantu murid memahami konsep dasar.</p>
-                                <div className="text-gray-400 text-center italic py-8 border border-dashed rounded font-sans">Konten materi belum dibuat.</div>
-                            </div>
-                        )}
+                <div className="print:w-full">
+                    <div className="print:hidden mb-4 p-4 bg-gray-100 rounded-lg flex justify-between items-center shadow-sm">
+                        <span className="font-bold text-gray-700 text-sm">Generator Ringkasan Materi</span>
+                        <Button onClick={onGenerateMateri} variant="magic" isLoading={loaders['materi']} icon={Sparkles}>Generate Materi AI</Button>
                     </div>
-                </A4Page>
+                    <A4Page teacherName={formData.namaPenyusun} className="font-serif text-[11px] leading-snug">
+                        <div className="text-center font-bold text-lg mb-4 border-b-2 border-blue-800 pb-2 text-blue-900 font-sans uppercase">PAPARAN MATERI</div>
+                        <div className="border border-gray-300 p-8 min-h-[500px] bg-white shadow-sm rounded-lg text-inherit">
+                            <h2 className="text-2xl font-bold text-center mb-6 text-blue-800 uppercase">{formData.materiPokok}</h2>
+                            {generatedMateriContent ? (
+                                <div dangerouslySetInnerHTML={{__html: generatedMateriContent}} className="prose max-w-none text-justify leading-relaxed text-inherit" />
+                            ) : (
+                                <div className="prose max-w-none text-justify leading-relaxed">
+                                    <p className="mb-4">Materi ajar tentang <strong>{formData.materiPokok}</strong> ini disusun untuk membantu murid memahami konsep dasar.</p>
+                                    <div className="text-gray-400 text-center italic py-8 border border-dashed rounded font-sans">Konten materi belum dibuat. Klik tombol di atas untuk generate per bagian.</div>
+                                </div>
+                            )}
+                        </div>
+                    </A4Page>
+                </div>
             )}
 
             {activeDocs.lkm && (
-                <A4Page teacherName={formData.namaPenyusun} className="font-serif text-[11px] leading-snug">
+                <div className="print:w-full">
+                    <div className="print:hidden mb-4 p-4 bg-gray-100 rounded-lg flex justify-between items-center shadow-sm">
+                        <span className="font-bold text-gray-700 text-sm">Generator Lembar Kegiatan Murid (LKM)</span>
+                        <Button onClick={onGenerateLKM} variant="magic" isLoading={loaders['lkm']} icon={Sparkles}>Generate LKM AI</Button>
+                    </div>
+                    <A4Page teacherName={formData.namaPenyusun} className="font-serif text-[11px] leading-snug">
 
                     <div className="border-2 border-black p-1 mb-4">
                         <div className="border border-black p-4">
@@ -564,10 +572,16 @@ export const RPMDocument: React.FC<PreviewProps> = ({
                         </div>
                     </div>
                 </A4Page>
+                </div>
             )}
 
             {activeDocs.rubrik && (
-                <A4Page teacherName={formData.namaPenyusun} className="font-serif text-[11px] leading-snug">
+                <div className="print:w-full">
+                    <div className="print:hidden mb-4 p-4 bg-gray-100 rounded-lg flex justify-between items-center shadow-sm">
+                        <span className="font-bold text-gray-700 text-sm">Generator Rubrik Penilaian</span>
+                        <Button onClick={onGenerateRubrik} variant="magic" isLoading={loaders['rubrik']} icon={Sparkles}>Generate Rubrik AI</Button>
+                    </div>
+                    <A4Page teacherName={formData.namaPenyusun} className="font-serif text-[11px] leading-snug">
                     <div className="text-center font-bold text-lg mb-4 border-b-2 border-green-600 pb-2 text-green-900 font-sans uppercase">RUBRIK PENILAIAN</div>
                     <div className="mb-6">
                         <h3 className="font-bold text-base mb-2 text-green-800">A. Penilaian Sikap</h3>
@@ -619,6 +633,7 @@ export const RPMDocument: React.FC<PreviewProps> = ({
                         </table>
                     </div>
                 </A4Page>
+                </div>
             )}
 
             {activeDocs.soal && (

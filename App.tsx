@@ -399,60 +399,7 @@ export default function App() {
     setLoaders(prev => ({ ...prev, lkm: false }));
   };
 
-  const generateBulkRPM = async () => {
-      setLoaders(prev => ({ ...prev, rpm: true }));
-      const prompt = buildBulkPrompts('rpm', formData);
-      try {
-          const res = await generateContent(prompt, userGeminiKey);
-          const json = cleanJSON(res);
-          if (json) {
-              setFormData(prev => ({
-                  ...prev,
-                  tujuanPembelajaran: json.tujuanPembelajaran || "",
-                  kegiatanAwal: json.kegiatanAwal || "",
-                  intiMemahami: json.kegiatanInti?.memahami || "",
-                  intiMengaplikasikan: json.kegiatanInti?.mengaplikasikan || "",
-                  intiMerefleksi: json.kegiatanInti?.merefleksi || "",
-                  kegiatanPenutup: json.kegiatanPenutup || ""
-              }));
-              setToastMessage("RPM berhasil di-generate!");
-          }
-      } catch (e: any) { console.error(e); alert("Gagal generate RPM: " + (e.message || e)); }
-      setLoaders(prev => ({ ...prev, rpm: false }));
-      setTimeout(() => setToastMessage(null), 3000);
-  };
 
-  const generateBulkLampiran = async () => {
-      setLoaders(prev => ({ ...prev, lampiran: true }));
-      const prompt = buildBulkPrompts('lampiran', formData);
-      try {
-          const res = await generateContent(prompt, userGeminiKey);
-          const json = cleanJSON(res);
-          if (json) {
-              setFormData(prev => ({
-                  ...prev,
-                  metode: json.metode || prev.metode || "",
-                  // Do NOT overwrite user-selected/configured values for these fields
-                  lintasDisiplin: prev.lintasDisiplin,
-                  kemitraan: prev.kemitraan,
-                  lingkunganBelajar: prev.lingkunganBelajar,
-                  alatDigital: prev.alatDigital,
-                  materiContent: json.materi || "",
-                  lkmContent: json.lkm || "",
-                  rubrikContent: json.rubrik || ""
-              }));
-              
-              // Sync to individual states for Preview
-              if (json.materi) setGeneratedMateriContent(json.materi);
-              if (json.lkm) setGeneratedLKMContent(json.lkm);
-              if (json.rubrik) setGeneratedRubrikContent(json.rubrik);
-
-              setToastMessage("Lampiran berhasil di-generate!");
-          }
-      } catch (e: any) { console.error(e); alert("Gagal generate lampiran: " + (e.message || e)); }
-      setLoaders(prev => ({ ...prev, lampiran: false }));
-      setTimeout(() => setToastMessage(null), 3000);
-  };
 
   const handleDownloadWord = () => {
       const el = document.getElementById('rpm-document');
@@ -620,7 +567,7 @@ export default function App() {
                 <form>
                     {step === 1 && <Step1Identitas formData={formData} setFormData={setFormData} />}
                     {step === 2 && <Step2Konten formData={formData} setFormData={setFormData} uploadedFile={uploadedFile} setUploadedFile={setUploadedFile} additionalContext={additionalContext} setAdditionalContext={setAdditionalContext} generateField={handleGenerateField} loaders={loaders} />}
-                    {step === 3 && <Step3Detail formData={formData} setFormData={setFormData} generateField={handleGenerateField} onGenerateBulkRPM={generateBulkRPM} onGenerateBulkLampiran={generateBulkLampiran} loaders={loaders} />}
+                    {step === 3 && <Step3Detail formData={formData} setFormData={setFormData} generateField={handleGenerateField} loaders={loaders} />}
                 </form>
                 <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center mt-8 pt-6 border-t border-gray-100 gap-4">
                     <div className="flex flex-col sm:flex-row gap-3">
@@ -677,10 +624,7 @@ export default function App() {
                         onGenerateLKM={generateLKMAI}
                         onGenerateRubrik={generateRubrikAI}
                         onGenerateSoal={generateSoalAI}
-                        onGenerateBulkRPM={generateBulkRPM}
-                        onGenerateBulkLampiran={generateBulkLampiran}
                         isGeneratingSoal={isGeneratingSoal}
-                        isGeneratingBulk={loaders['rpm'] || loaders['lampiran']}
                     />
                 </div>
             </div>
