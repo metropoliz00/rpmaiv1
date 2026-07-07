@@ -121,9 +121,9 @@ app.post("/api/gemini/generate", async (req, res) => {
     }
 
     if (!apiKeyToUse) {
-      return res.status(500).json({
-        error: "API Key Gemini tidak ditemukan. Silakan masukkan API Key Anda di menu Pengaturan atau hubungi Admin."
-      });
+      console.log("No API Key found, using smart offline generator fallback.");
+      const fallbackText = generateSmartFallback(prompt || "");
+      return res.json({ text: fallbackText, fallback: true });
     }
 
     const ai = new GoogleGenAI({
