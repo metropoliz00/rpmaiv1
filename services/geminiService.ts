@@ -129,7 +129,18 @@ export const testApiKey = async (apiKey: string): Promise<{ success: boolean; me
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ apiKey }),
     });
-    const data = await response.json();
+    
+    const text = await response.text();
+    let data: any = {};
+    try {
+      data = JSON.parse(text);
+    } catch {
+      if (!response.ok) {
+        return { success: false, message: `Server error (${response.status}): ${text.slice(0, 100) || "Respon server tidak valid"}` };
+      }
+      return { success: false, message: "Respon server tidak valid (bukan JSON)." };
+    }
+
     if (!response.ok || !data.success) {
       return { success: false, message: data.error || "API Key tidak valid atau gagal terhubung." };
     }
