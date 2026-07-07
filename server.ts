@@ -125,13 +125,10 @@ app.post("/api/gemini/generate", async (req, res) => {
       return res.status(400).json({ error: "Prompt is required" });
     }
 
-    let apiKeyToUse = cleanApiKey(userApiKey);
+    let apiKeyToUse = "";
 
-    if (!apiKeyToUse || apiKeyToUse.trim() === "" || apiKeyToUse.includes("DUMMY")) {
-      apiKeyToUse = cleanApiKey(process.env.GEMINI_API_KEY || process.env.API_KEY);
-    }
-
-    if (!apiKeyToUse && email) {
+    // 1. Prioritize reading the API key stored by the user in the database (Supabase users table)
+    if (email) {
       try {
         const { data } = await supabase
           .from('users')
@@ -142,8 +139,18 @@ app.post("/api/gemini/generate", async (req, res) => {
           apiKeyToUse = cleanApiKey(data.gemini_api_key);
         }
       } catch (e) {
-        console.error("Supabase fetch error:", e);
+        console.error("Supabase fetch error for user API key:", e);
       }
+    }
+
+    // 2. If not found in database or empty/dummy, try userApiKey passed from client/localStorage
+    if (!apiKeyToUse || apiKeyToUse.trim() === "" || apiKeyToUse.includes("DUMMY")) {
+      apiKeyToUse = cleanApiKey(userApiKey);
+    }
+
+    // 3. If still empty, fall back to Vercel environment variable (process.env.GEMINI_API_KEY)
+    if (!apiKeyToUse || apiKeyToUse.trim() === "" || apiKeyToUse.includes("DUMMY")) {
+      apiKeyToUse = cleanApiKey(process.env.GEMINI_API_KEY || process.env.API_KEY);
     }
 
     if (!apiKeyToUse || apiKeyToUse.trim() === "" || apiKeyToUse.includes("DUMMY")) {
