@@ -371,8 +371,8 @@ export const ActivationScreen: React.FC<ActivationScreenProps> = ({ onActivated 
                     className="w-full bg-slate-50/50 border border-slate-200 rounded-xl px-4 py-3 text-slate-900 placeholder-slate-400 focus:bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 transition-all text-sm shadow-sm font-mono"
                     required
                   />
-                  <p className="text-[11px] text-slate-500 mt-1">
-                    Wajib diisi dan disimpan ke database agar Anda dapat menggunakan AI dengan API key milik Anda sendiri.
+                  <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
+                    Wajib diisi dan disimpan ke database agar Anda dapat menggunakan AI dengan API key milik Anda sendiri. Belum punya API Key? Dapatkan secara gratis di <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline font-medium hover:text-blue-700">Google AI Studio</a>.
                   </p>
                 </div>
               )}
