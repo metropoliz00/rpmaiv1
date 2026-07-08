@@ -855,7 +855,7 @@ export default function App() {
                             className="w-full p-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" 
                             value={profileData.namaSekolah} 
                             onChange={(e) => setProfileData({...profileData, namaSekolah: e.target.value})} 
-                            placeholder="Contoh: SD Negeri 1 Sukamaju" 
+                            placeholder="Masukkan nama sekolah" 
                         />
                     </div>
                     
