@@ -3,7 +3,7 @@ import {
   Bot, ChevronRight, ChevronLeft, Save, Edit3, File, Presentation, 
   FileText, List, CheckSquare, Layers, Copy, FileDown, CheckCircle, Printer,
   UserCircle, X, MapPin, Briefcase, GraduationCap, Settings, LogOut, Key, Mail, Lock, Eye, EyeOff, ExternalLink, Trash2,
-  MessageCircle, Sparkles, AlertTriangle
+  MessageCircle, Sparkles, AlertTriangle, UserCheck
 } from 'lucide-react';
 import { Step1Identitas, Step2Konten, Step3Detail } from './components/FormSteps';
 import { RPMDocument } from './components/Preview';
@@ -63,11 +63,59 @@ export default function App() {
   const [formData, setFormData] = useState<RPMData>(() => {
     try {
       const saved = localStorage.getItem('rpm_form_data');
-      return saved ? JSON.parse(saved) : initialFormData;
+      const profileSaved = localStorage.getItem('user_profile_data');
+      const initial = saved ? JSON.parse(saved) : initialFormData;
+      if (profileSaved) {
+        const profile = JSON.parse(profileSaved);
+        if (!initial.namaSekolah) initial.namaSekolah = profile.namaSekolah || '';
+        if (!initial.namaKepalaSekolah) initial.namaKepalaSekolah = profile.namaKepalaSekolah || '';
+        if (!initial.nipKepalaSekolah) initial.nipKepalaSekolah = profile.nipKepalaSekolah || '';
+        if (!initial.namaPenyusun) initial.namaPenyusun = profile.namaPenyusun || '';
+        if (!initial.nipPenyusun) initial.nipPenyusun = profile.nipPenyusun || '';
+      }
+      return initial;
     } catch (e) {
       return initialFormData;
     }
   });
+
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [profileData, setProfileData] = useState(() => {
+    try {
+      const saved = localStorage.getItem('user_profile_data');
+      return saved ? JSON.parse(saved) : {
+        namaSekolah: formData.namaSekolah || '',
+        namaKepalaSekolah: formData.namaKepalaSekolah || '',
+        nipKepalaSekolah: formData.nipKepalaSekolah || '',
+        namaPenyusun: formData.namaPenyusun || '',
+        nipPenyusun: formData.nipPenyusun || ''
+      };
+    } catch (e) {
+      return {
+        namaSekolah: '',
+        namaKepalaSekolah: '',
+        nipKepalaSekolah: '',
+        namaPenyusun: '',
+        nipPenyusun: ''
+      };
+    }
+  });
+
+  const handleSaveProfile = (e: React.FormEvent) => {
+    e.preventDefault();
+    localStorage.setItem('user_profile_data', JSON.stringify(profileData));
+    setFormData(prev => ({
+      ...prev,
+      namaSekolah: profileData.namaSekolah,
+      namaKepalaSekolah: profileData.namaKepalaSekolah,
+      nipKepalaSekolah: profileData.nipKepalaSekolah,
+      namaPenyusun: profileData.namaPenyusun,
+      nipPenyusun: profileData.nipPenyusun
+    }));
+    setShowProfileModal(false);
+    setToastMessage("Profil pengguna berhasil disimpan dan diterapkan otomatis ke form utama!");
+    setTimeout(() => setToastMessage(null), 3000);
+  };
 
   // Content states
   const [generatedSoalContent, setGeneratedSoalContent] = useState(formData.soalContent || "");
@@ -542,6 +590,13 @@ export default function App() {
             </div>
             <div className="flex items-center gap-1 shrink-0 ml-auto sm:ml-2 md:hidden">
               <button 
+                  onClick={() => setShowProfileModal(true)} 
+                  className="p-1.5 rounded-full bg-white/10 hover:bg-white/20 transition-all text-blue-100 hover:text-white"
+                  title="Lengkapi Profil Pengguna"
+              >
+                  <UserCheck size={20} className="sm:w-6 sm:h-6 text-orange-400" />
+              </button>
+              <button 
                   onClick={() => setShowSettings(true)} 
                   className={`p-1.5 rounded-full transition-all ${Boolean(userGeminiKey && userGeminiKey.trim() !== "" && !userGeminiKey.includes("DUMMY")) ? 'bg-emerald-500/20 text-emerald-300 hover:text-emerald-200' : 'bg-yellow-500/20 text-yellow-300 hover:text-yellow-200'}`}
                   title={Boolean(userGeminiKey && userGeminiKey.trim() !== "" && !userGeminiKey.includes("DUMMY")) ? "API Key Aktif: User (Hijau)" : "API Key Aktif: System (Kuning)"}
@@ -576,6 +631,13 @@ export default function App() {
              <div className="h-6 w-px bg-white/20 ml-2"></div>
              
              <div className="flex items-center gap-1">
+               <button 
+                   onClick={() => setShowProfileModal(true)} 
+                   className="p-1.5 rounded-full bg-white/10 hover:bg-white/20 transition-all text-blue-100 hover:text-white"
+                   title="Lengkapi Profil Pengguna"
+               >
+                   <UserCheck size={20} className="sm:w-6 sm:h-6 text-orange-400" />
+               </button>
                <button 
                    onClick={() => setShowSettings(true)} 
                    className={`p-1.5 rounded-full transition-all ${Boolean(userGeminiKey && userGeminiKey.trim() !== "" && !userGeminiKey.includes("DUMMY")) ? 'bg-emerald-500/20 text-emerald-300 hover:text-emerald-200' : 'bg-yellow-500/20 text-yellow-300 hover:text-yellow-200'}`}
@@ -758,6 +820,108 @@ export default function App() {
                         Ya, Keluar
                     </button>
                 </div>
+            </div>
+        </div>
+      )}
+
+      {/* Profile Modal */}
+      {showProfileModal && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in print:hidden">
+            <div className="bg-white rounded-2xl p-6 w-full max-w-lg shadow-2xl relative animate-fade-in-up border border-slate-100">
+                <div className="flex justify-between items-center mb-4 pb-3 border-b border-gray-100">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2.5 rounded-xl bg-blue-50 text-blue-600">
+                            <UserCheck size={24} />
+                        </div>
+                        <div>
+                            <h3 className="text-lg font-bold text-gray-900">Lengkapi Profil Pengguna</h3>
+                            <p className="text-xs text-gray-500">Data sekolah & guru akan otomatis terisi di halaman utama</p>
+                        </div>
+                    </div>
+                    <button 
+                        onClick={() => setShowProfileModal(false)}
+                        className="p-1.5 text-gray-400 hover:text-gray-600 rounded-full transition-colors"
+                    >
+                        <X size={20} />
+                    </button>
+                </div>
+                
+                <form onSubmit={handleSaveProfile} className="space-y-4">
+                    <div>
+                        <label className="block text-xs font-bold text-gray-700 mb-1">Nama Sekolah</label>
+                        <input 
+                            type="text" 
+                            required
+                            className="w-full p-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" 
+                            value={profileData.namaSekolah} 
+                            onChange={(e) => setProfileData({...profileData, namaSekolah: e.target.value})} 
+                            placeholder="Contoh: SD Negeri 1 Sukamaju" 
+                        />
+                    </div>
+                    
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-xs font-bold text-gray-700 mb-1">Nama Kepala Sekolah</label>
+                            <input 
+                                type="text" 
+                                className="w-full p-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" 
+                                value={profileData.namaKepalaSekolah} 
+                                onChange={(e) => setProfileData({...profileData, namaKepalaSekolah: e.target.value})} 
+                                placeholder="Nama lengkap dengan gelar" 
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-gray-700 mb-1">NIP Kepala Sekolah</label>
+                            <input 
+                                type="text" 
+                                className="w-full p-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" 
+                                value={profileData.nipKepalaSekolah} 
+                                onChange={(e) => setProfileData({...profileData, nipKepalaSekolah: e.target.value})} 
+                                placeholder="NIP Kepala Sekolah" 
+                            />
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-xs font-bold text-gray-700 mb-1">Nama Guru / Penyusun</label>
+                            <input 
+                                type="text" 
+                                required
+                                className="w-full p-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" 
+                                value={profileData.namaPenyusun} 
+                                onChange={(e) => setProfileData({...profileData, namaPenyusun: e.target.value})} 
+                                placeholder="Nama Guru / Penyusun" 
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-gray-700 mb-1">NIP Guru / Penyusun</label>
+                            <input 
+                                type="text" 
+                                className="w-full p-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" 
+                                value={profileData.nipPenyusun} 
+                                onChange={(e) => setProfileData({...profileData, nipPenyusun: e.target.value})} 
+                                placeholder="NIP Guru / Penyusun" 
+                            />
+                        </div>
+                    </div>
+
+                    <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
+                        <button
+                            type="button"
+                            onClick={() => setShowProfileModal(false)}
+                            className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-bold rounded-xl transition-all"
+                        >
+                            Batal
+                        </button>
+                        <button
+                            type="submit"
+                            className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl transition-all shadow-md"
+                        >
+                            Simpan & Terapkan
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
       )}
