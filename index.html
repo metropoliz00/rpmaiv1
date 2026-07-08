@@ -40,8 +40,14 @@
       }
       
       @media print {
-        @page { size: A4; margin: 0; }
-        body { margin: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; background-color: white; }
+        @page { size: A4; margin: 15mm; }
+        body { 
+          margin: 0 !important; 
+          padding: 0 !important; 
+          -webkit-print-color-adjust: exact; 
+          print-color-adjust: exact; 
+          background-color: white !important; 
+        }
         
         /* Reset animations and transforms to prevent fixed positioning issues */
         * {
@@ -50,17 +56,20 @@
             transform: none !important;
         }
 
-        /* Hide all UI elements marked with no-print or via utility classes */
-        .no-print, header, footer.print\:hidden { display: none !important; }
+        /* Hide all UI elements, headers, sidebars, buttons, and action bars */
+        header, nav, aside, footer, .print\:hidden, button, .shadow-xl, .shadow-md, .shadow-sm { 
+          display: none !important; 
+        }
         
         /* Reset main container layout constraints for print */
         #root, main, .max-w-5xl { 
             width: 100% !important; 
             max-width: none !important; 
             margin: 0 !important; 
-            padding: 0 !important;
+            padding: 0 !important; 
             overflow: visible !important;
             position: static !important;
+            background: white !important;
         }
 
         .print-break-before { page-break-before: always; }
@@ -68,17 +77,21 @@
         .a4-page {
            box-shadow: none !important;
            margin: 0 !important;
-           width: 210mm !important;
-           min-height: 297mm !important;
+           padding: 0 !important;
+           width: 100% !important;
+           min-height: auto !important;
            height: auto !important;
            page-break-after: always;
+           break-after: page;
            print-color-adjust: exact;
            overflow: visible !important;
+           background: white !important;
         }
         
         /* Prevent blank page after the last sheet */
         .a4-page:last-of-type {
            page-break-after: auto;
+           break-after: auto;
         }
 
         /* Hide scrollbars */
