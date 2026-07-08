@@ -11,11 +11,22 @@ import { Button } from './components/UI';
 import { initialFormData, RPMData, RubrikData, LKMData } from './types';
 import { generateContent, cleanJSON, buildBulkPrompts, buildPrompt, testApiKey, formatNumberedText } from './services/geminiService';
 import { ActivationScreen } from './components/ActivationScreen';
-import { checkIsActivated, clearCredentials, getSavedCredentials, saveCredentials, checkUserOnDb, updateUserGeminiKeyOnDb } from './services/licenseService';
+import { checkIsActivated, clearCredentials, getSavedCredentials, saveCredentials, checkUserOnDb, updateUserGeminiKeyOnDb, getRegisteredUsers } from './services/licenseService';
 
 export default function App() {
   const [isActivated, setIsActivated] = useState(checkIsActivated());
   const [showDeactivateConfirm, setShowDeactivateConfirm] = useState(false);
+  const [currentUserShowAttachments, setCurrentUserShowAttachments] = useState<boolean>(() => {
+    const creds = getSavedCredentials();
+    if (creds && creds.email) {
+      const users = getRegisteredUsers();
+      const found = users.find(u => u.email === creds.email);
+      if (found && found.showAttachments !== undefined) {
+        return found.showAttachments;
+      }
+    }
+    return true;
+  });
 
   const handleDeactivate = () => {
     clearCredentials();
@@ -35,27 +46,38 @@ export default function App() {
   const [isTestingKey, setIsTestingKey] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
 
-  // Load Gemini Key from DB on activation
+  // Load Gemini Key and showAttachments from DB on activation
   React.useEffect(() => {
-    const loadUserKey = async () => {
+    const loadUserInfo = async () => {
       if (isActivated) {
         const creds = getSavedCredentials();
         if (creds && creds.email) {
           try {
             const user = await checkUserOnDb(creds.email);
-            if (user && user.geminiApiKey) {
-              const cloudKey = user.geminiApiKey;
-              setUserGeminiKey(cloudKey);
-              localStorage.setItem('user_gemini_api_key', cloudKey);
+            if (user) {
+              if (user.geminiApiKey) {
+                const cloudKey = user.geminiApiKey;
+                setUserGeminiKey(cloudKey);
+                localStorage.setItem('user_gemini_api_key', cloudKey);
+              }
+              if (user.showAttachments !== undefined) {
+                setCurrentUserShowAttachments(user.showAttachments);
+              }
             }
           } catch (e) {
-            console.error("Gagal memuat API Key dari cloud:", e);
+            console.error("Gagal memuat info user dari cloud:", e);
           }
         }
       }
     };
-    loadUserKey();
+    loadUserInfo();
   }, [isActivated]);
+
+  React.useEffect(() => {
+    if (!currentUserShowAttachments && (activeDocs.paparan || activeDocs.lkm || activeDocs.rubrik || activeDocs.soal)) {
+      setActiveDocs({ rpm: true, paparan: false, lkm: false, rubrik: false, soal: false });
+    }
+  }, [currentUserShowAttachments]);
   
   // Loading states
   const [loaders, setLoaders] = useState<Record<string, boolean>>({});
@@ -711,11 +733,15 @@ export default function App() {
                 
                 <div className="bg-white p-3 rounded-xl shadow-md mb-6 border border-gray-200 print:hidden flex overflow-x-auto gap-2 no-scrollbar scroll-smooth whitespace-nowrap scrollbar-thin">
                      <Button onClick={() => switchDoc('rpm')} variant={activeDocs.rpm ? "active" : "outline"} size="sm" icon={File} className="shrink-0">Dokumen Utama</Button>
-                     <Button onClick={() => switchDoc('paparan')} variant={activeDocs.paparan ? "active" : "outline"} size="sm" icon={Presentation} className="shrink-0">Paparan Materi</Button>
-                     <Button onClick={() => switchDoc('lkm')} variant={activeDocs.lkm ? "active" : "outline"} size="sm" icon={FileText} className="shrink-0">LKM</Button>
-                     <Button onClick={() => switchDoc('rubrik')} variant={activeDocs.rubrik ? "active" : "outline"} size="sm" icon={List} className="shrink-0">Rubrik</Button>
-                     <Button onClick={() => switchDoc('soal')} variant={activeDocs.soal ? "active" : "outline"} size="sm" icon={CheckSquare} className="shrink-0">Soal</Button>
-                     <Button onClick={activateAllDocs} variant="success" size="sm" icon={Layers} className="shrink-0">Tampilkan Semua</Button>
+                     {currentUserShowAttachments && (
+                       <>
+                         <Button onClick={() => switchDoc('paparan')} variant={activeDocs.paparan ? "active" : "outline"} size="sm" icon={Presentation} className="shrink-0">Paparan Materi</Button>
+                         <Button onClick={() => switchDoc('lkm')} variant={activeDocs.lkm ? "active" : "outline"} size="sm" icon={FileText} className="shrink-0">LKM</Button>
+                         <Button onClick={() => switchDoc('rubrik')} variant={activeDocs.rubrik ? "active" : "outline"} size="sm" icon={List} className="shrink-0">Rubrik</Button>
+                         <Button onClick={() => switchDoc('soal')} variant={activeDocs.soal ? "active" : "outline"} size="sm" icon={CheckSquare} className="shrink-0">Soal</Button>
+                         <Button onClick={activateAllDocs} variant="success" size="sm" icon={Layers} className="shrink-0">Tampilkan Semua</Button>
+                       </>
+                     )}
                 </div>
                 
                 <div className="overflow-x-auto pb-10 bg-gray-200 p-2 md:p-8 rounded-xl print:p-0 print:bg-white print:rounded-none print:overflow-visible">

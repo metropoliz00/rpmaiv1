@@ -60,6 +60,7 @@ export const ActivationScreen: React.FC<ActivationScreenProps> = ({ onActivated 
   const [newEmail, setNewEmail] = useState('');
   const [newGeminiKey, setNewGeminiKey] = useState('');
   const [newIsActive, setNewIsActive] = useState(true);
+  const [newShowAttachments, setNewShowAttachments] = useState(true);
   const [showDevModal, setShowDevModal] = useState(false);
 
   // Copy states
@@ -238,7 +239,7 @@ export const ActivationScreen: React.FC<ActivationScreenProps> = ({ onActivated 
     const activeCreds = getSavedCredentials();
     const systemKey = newGeminiKey.trim() || (typeof process !== "undefined" ? (process.env.GEMINI_API_KEY || process.env.API_KEY) : null) || (activeCreds ? activeCreds.geminiApiKey : '') || localStorage.getItem("user_gemini_api_key") || "AIzaSyDUMMY_AUTO_GENERATED_KEY_12345";
 
-    await registerUserOnDb(cleanEmail, systemKey, newIsActive);
+    await registerUserOnDb(cleanEmail, systemKey, newIsActive, newShowAttachments);
     
     // Refresh list
     const updated = await getRegisteredUsersFromDb();
@@ -248,6 +249,7 @@ export const ActivationScreen: React.FC<ActivationScreenProps> = ({ onActivated 
     setNewEmail('');
     setNewGeminiKey('');
     setNewIsActive(true);
+    setNewShowAttachments(true);
     
     setSuccessToast("User baru berhasil terdaftar!");
     setTimeout(() => setSuccessToast(null), 2500);
@@ -264,7 +266,13 @@ export const ActivationScreen: React.FC<ActivationScreenProps> = ({ onActivated 
   };
 
   const handleToggleUserStatus = async (user: RegisteredUser) => {
-    await registerUserOnDb(user.email, user.geminiApiKey, !user.isActive);
+    await registerUserOnDb(user.email, user.geminiApiKey, !user.isActive, user.showAttachments);
+    const updated = await getRegisteredUsersFromDb();
+    setRegisteredUsers(updated);
+  };
+
+  const handleToggleUserAttachments = async (user: RegisteredUser) => {
+    await registerUserOnDb(user.email, user.geminiApiKey, user.isActive, !(user.showAttachments ?? true));
     const updated = await getRegisteredUsersFromDb();
     setRegisteredUsers(updated);
   };
@@ -539,7 +547,7 @@ export const ActivationScreen: React.FC<ActivationScreenProps> = ({ onActivated 
                       />
                       <p className="text-[9px] text-slate-500 mt-1 italic">Kosongkan jika ingin menggunakan key Admin/Vercel default.</p>
                     </div>
-                    <div className="flex items-center justify-between pt-1">
+                    <div className="space-y-2 pt-1 border-t border-purple-100">
                       <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-700 font-medium">
                         <input 
                           type="checkbox"
@@ -549,6 +557,18 @@ export const ActivationScreen: React.FC<ActivationScreenProps> = ({ onActivated 
                         />
                         Status Langsung Aktif
                       </label>
+                      <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-700 font-medium">
+                        <input 
+                          type="checkbox"
+                          checked={newShowAttachments}
+                          onChange={(e) => setNewShowAttachments(e.target.checked)}
+                          className="rounded border-slate-300 bg-white text-purple-600 focus:ring-0"
+                        />
+                        Tampilkan Menu Lampiran (Paparan, LKM, Rubrik, Soal)
+                      </label>
+                    </div>
+
+                    <div className="flex justify-end pt-2">
                       <button
                         type="submit"
                         className="bg-purple-600 hover:bg-purple-500 text-white font-bold px-4 py-1.5 rounded-lg text-xs transition-colors flex items-center gap-1"
@@ -608,13 +628,21 @@ export const ActivationScreen: React.FC<ActivationScreenProps> = ({ onActivated 
                             </div>
                           </div>
 
-                          <div className="flex items-center gap-2 justify-end pt-2 md:pt-0 border-t border-slate-100 md:border-0">
+                          <div className="flex items-center gap-2 justify-end pt-2 md:pt-0 border-t border-slate-100 md:border-0 flex-wrap">
                             <button
                               onClick={() => handleToggleUserStatus(user)}
-                              className={`p-1 rounded-lg transition-colors flex items-center gap-1 text-[10px] font-semibold ${user.isActive ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100' : 'bg-red-50 text-red-600 hover:bg-red-100'}`}
+                              className={`px-2 py-1 rounded-lg transition-colors flex items-center gap-1 text-[10px] font-semibold ${user.isActive ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border border-emerald-200' : 'bg-red-50 text-red-600 hover:bg-red-100 border border-red-200'}`}
                               title={user.isActive ? "Klik untuk Nonaktifkan" : "Klik untuk Aktifkan"}
                             >
                               {user.isActive ? "Aktif" : "Nonaktif"}
+                            </button>
+
+                            <button
+                              onClick={() => handleToggleUserAttachments(user)}
+                              className={`px-2 py-1 rounded-lg transition-colors flex items-center gap-1 text-[10px] font-semibold ${user.showAttachments !== false ? 'bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200' : 'bg-slate-100 text-slate-500 hover:bg-slate-200 border border-slate-200'}`}
+                              title="Klik untuk Toggle Visibilitas Menu Lampiran"
+                            >
+                              Lampiran: {user.showAttachments !== false ? 'Aktif' : 'Sembunyi'}
                             </button>
 
                             <button

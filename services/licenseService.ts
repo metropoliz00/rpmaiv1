@@ -77,6 +77,7 @@ export interface RegisteredUser {
   geminiApiKey: string;
   licenseKey: string;
   isActive: boolean;
+  showAttachments: boolean;
   createdAt: string;
 }
 
@@ -90,7 +91,11 @@ export const getRegisteredUsers = (): RegisteredUser[] => {
     return [];
   }
   try {
-    return JSON.parse(usersJson);
+    const parsed = JSON.parse(usersJson);
+    return parsed.map((u: any) => ({
+      ...u,
+      showAttachments: u.showAttachments !== undefined ? u.showAttachments : true
+    }));
   } catch (e) {
     return [];
   }
@@ -107,18 +112,21 @@ export const saveRegisteredUsers = (users: RegisteredUser[]): void => {
  * Registers or updates a user in the database.
  * Automatically generates the license key.
  */
-export const registerUser = (email: string, geminiApiKey: string, isActive: boolean = true): RegisteredUser => {
+export const registerUser = (email: string, geminiApiKey: string, isActive: boolean = true, showAttachments: boolean = true): RegisteredUser => {
   const cleanEmail = email.trim().toLowerCase();
   const licenseKey = generateLicenseKey(cleanEmail);
   const users = getRegisteredUsers();
   
   const existingIndex = users.findIndex(u => u.email === cleanEmail);
+  const existingUser = existingIndex >= 0 ? users[existingIndex] : null;
+  
   const newUser: RegisteredUser = {
     email: cleanEmail,
     geminiApiKey: geminiApiKey.trim(),
     licenseKey,
     isActive,
-    createdAt: existingIndex >= 0 ? users[existingIndex].createdAt : new Date().toISOString()
+    showAttachments: showAttachments !== undefined ? showAttachments : (existingUser ? existingUser.showAttachments : true),
+    createdAt: existingUser ? existingUser.createdAt : new Date().toISOString()
   };
 
   if (existingIndex >= 0) {
@@ -147,6 +155,7 @@ const mapToRegisteredUser = (row: any): RegisteredUser => {
     geminiApiKey: row.gemini_api_key,
     licenseKey: row.license_key,
     isActive: row.is_active,
+    showAttachments: row.show_attachments !== undefined && row.show_attachments !== null ? row.show_attachments : true,
     createdAt: row.created_at
   };
 };
@@ -158,6 +167,7 @@ const mapToDbRow = (user: RegisteredUser) => {
     gemini_api_key: user.geminiApiKey,
     license_key: user.licenseKey,
     is_active: user.isActive,
+    show_attachments: user.showAttachments ?? true,
     created_at: user.createdAt
   };
 };
@@ -192,24 +202,28 @@ export const getRegisteredUsersFromDb = async (): Promise<RegisteredUser[]> => {
  * Registers or updates a user in the Supabase database.
  * Automatically generates the license key.
  */
-export const registerUserOnDb = async (email: string, geminiApiKey: string, isActive: boolean = true): Promise<RegisteredUser> => {
+export const registerUserOnDb = async (email: string, geminiApiKey: string, isActive: boolean = true, showAttachments: boolean = true): Promise<RegisteredUser> => {
   if (!isSupabaseConfigured()) {
-    return registerUser(email, geminiApiKey, isActive);
+    return registerUser(email, geminiApiKey, isActive, showAttachments);
   }
 
   const cleanEmail = email.trim().toLowerCase();
   const licenseKey = generateLicenseKey(cleanEmail);
   
   let createdAt = new Date().toISOString();
+  let existingShowAttachments = true;
   try {
     const { data: existing, error } = await supabase
       .from('users')
-      .select('created_at')
+      .select('created_at, show_attachments')
       .eq('email', cleanEmail)
       .maybeSingle();
 
     if (existing && !error) {
       createdAt = existing.created_at;
+      if (existing.show_attachments !== undefined && existing.show_attachments !== null) {
+        existingShowAttachments = existing.show_attachments;
+      }
     }
   } catch (e) {
     console.error("Error checking existing user in DB:", e);
@@ -220,6 +234,7 @@ export const registerUserOnDb = async (email: string, geminiApiKey: string, isAc
     geminiApiKey: geminiApiKey.trim(),
     licenseKey,
     isActive,
+    showAttachments: showAttachments !== undefined ? showAttachments : existingShowAttachments,
     createdAt
   };
 
