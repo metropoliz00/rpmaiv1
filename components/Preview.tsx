@@ -346,7 +346,7 @@ export const RPMDocument: React.FC<PreviewProps> = ({
             )}
 
             {activeDocs.paparan && (
-                <div className="print:w-full">
+                <div className="print:w-full print:page-break-before-always print:break-before-page">
                     <div className="print:hidden mb-4 p-4 bg-gray-100 rounded-lg flex justify-between items-center shadow-sm">
                         <span className="font-bold text-gray-700 text-sm">Generator Ringkasan Materi</span>
                         <Button onClick={onGenerateMateri} variant="magic" isLoading={loaders['materi']} icon={Sparkles}>Generate Materi AI</Button>
@@ -369,7 +369,7 @@ export const RPMDocument: React.FC<PreviewProps> = ({
             )}
 
             {activeDocs.lkm && (
-                <div className="print:w-full">
+                <div className="print:w-full print:page-break-before-always print:break-before-page">
                     <div className="print:hidden mb-4 p-4 bg-gray-100 rounded-lg flex justify-between items-center shadow-sm">
                         <span className="font-bold text-gray-700 text-sm">Generator Lembar Kegiatan Murid (LKM)</span>
                         <Button onClick={onGenerateLKM} variant="magic" isLoading={loaders['lkm']} icon={Sparkles}>Generate LKM AI</Button>
@@ -577,7 +577,7 @@ export const RPMDocument: React.FC<PreviewProps> = ({
             )}
 
             {activeDocs.rubrik && (
-                <div className="print:w-full">
+                <div className="print:w-full print:page-break-before-always print:break-before-page">
                     <div className="print:hidden mb-4 p-4 bg-gray-100 rounded-lg flex justify-between items-center shadow-sm">
                         <span className="font-bold text-gray-700 text-sm">Generator Rubrik Penilaian</span>
                         <Button onClick={onGenerateRubrik} variant="magic" isLoading={loaders['rubrik']} icon={Sparkles}>Generate Rubrik AI</Button>
@@ -638,7 +638,7 @@ export const RPMDocument: React.FC<PreviewProps> = ({
             )}
 
             {activeDocs.soal && (
-                <div className="print:w-full">
+                <div className="print:w-full print:page-break-before-always print:break-before-page">
                     <div className="print:hidden mb-4 p-4 bg-gray-100 rounded-lg flex flex-col items-center gap-4">
                         <div className="font-bold text-gray-700 mb-2">Konfigurasi Soal Evaluasi</div>
                         <div className="flex flex-wrap gap-4 items-center justify-center">
