@@ -47,6 +47,18 @@ export const cleanJSON = (text: any): any => {
   }
 };
 
+export const formatNumberedText = (text: any): string => {
+  if (!text) return "";
+  const str = typeof text === 'string' ? text : String(text);
+  let expanded = str.replace(/<br\s*\/?>/gi, '\n');
+  expanded = expanded.replace(/([^\n])\s+(\d+[\.\)]\s+)/g, '$1\n$2');
+  const lines = expanded.split(/\n/).map(l => l.trim()).filter(Boolean);
+  return lines.map((line, idx) => {
+    let clean = line.replace(/^[\*\-\•\+\s]+/, '').replace(/^\d+[\.\)\s]+/, '').replace(/^[a-zA-Z][\.\)\s]+/, '').trim();
+    return `${idx + 1}. ${clean}`;
+  }).join('\n');
+};
+
 export const generateSmartFallback = (prompt: string): string => {
   const p = prompt.toLowerCase();
   if (p.includes("tujuan pembelajaran") || p.includes("tujuan")) {
@@ -170,16 +182,17 @@ export const buildBulkPrompts = (type: 'rpm' | 'lampiran', formData: RPMData): s
 
   if (type === 'rpm') {
       return `${baseContext}
-      Buat Rencana Pelaksanaan Pembelajaran (RPM) yang komprehensif dalam format JSON:
+      Buat Rencana Pelaksanaan Pembelajaran (RPM) yang komprehensif dalam format JSON. 
+      PENTING: Gunakan penomoran berurutan (1., 2., 3., dst.) dengan format "1. Murid..." pada setiap poin di bawah ini:
       {
-        "tujuanPembelajaran": "Buat 3 Tujuan Pembelajaran spesifik mengikuti rumus 'Melalui [pendekatan/metode], murid dapat [KKO] [materi] dengan [tepat]'. Gunakan daftar penomoran.",
-        "kegiatanAwal": "Buat Kegiatan Awal dengan minimal 3 poin (Apersepsi/Motivasi, dll) menggunakan **BOLD** pada kata kunci.",
+        "tujuanPembelajaran": "Buat 3 Tujuan Pembelajaran spesifik mengikuti rumus 'Melalui [pendekatan/metode], murid dapat [KKO] [materi] dengan [tepat]' dengan penomoran 1., 2., 3.",
+        "kegiatanAwal": "Buat Kegiatan Awal dengan minimal 3 poin (Apersepsi/Motivasi, dll) diawali dengan 1., 2., 3. dan gunakan **BOLD** pada kata kunci.",
         "kegiatanInti": {
-          "memahami": "3-5 poin aktivitas murid aktif",
-          "mengaplikasikan": "3-5 poin aktivitas murid diskusi/eksperimen",
-          "merefleksi": "3-5 poin aktivitas murid menyimpulkan/refleksi"
+          "memahami": "3-5 poin aktivitas murid aktif sesuai sintak model ${formData.modelPembelajaran}, diawali 1., 2., 3.",
+          "mengaplikasikan": "3-5 poin aktivitas murid diskusi/eksperimen sesuai sintak model ${formData.modelPembelajaran}, diawali 1., 2., 3.",
+          "merefleksi": "3-5 poin aktivitas murid menyimpulkan/refleksi sesuai sintak model ${formData.modelPembelajaran}, diawali 1., 2., 3."
         },
-        "kegiatanPenutup": "Buat Kegiatan Penutup dengan minimal 3 poin menggunakan **BOLD** pada kata kunci."
+        "kegiatanPenutup": "Buat Kegiatan Penutup dengan minimal 3 poin diawali 1., 2., 3. dan gunakan **BOLD** pada kata kunci."
       }
       `;
   } else {
@@ -213,10 +226,10 @@ export const buildPrompt = (fieldName: string, formData: RPMData, additionalCont
     if (fileName) context += `\nReferensikan data dari file: ${fileName}`;
 
     const prompts: Record<string, string> = {
-        tujuanPembelajaran: `Buat 3 Tujuan Pembelajaran spesifik mengikuti rumus 'Melalui [pendekatan/metode], murid dapat [KKO] [materi] dengan [tepat]'.`,
-        kegiatanAwal: `Buat Kegiatan Awal (Pendahuluan) interaktif. Gunakan kata "Murid".`,
-        kegiatanInti: `Buat Kegiatan Inti dalam format JSON: {"memahami": "...", "mengaplikasikan": "...", "merefleksi": "..."}. Sesuaikan dengan model ${formData.modelPembelajaran}.`,
-        kegiatanPenutup: `Buat Kegiatan Penutup (Refleksi) yang bermakna.`,
+        tujuanPembelajaran: `Buat 3 Tujuan Pembelajaran spesifik mengikuti rumus 'Melalui [pendekatan/metode], murid dapat [KKO] [materi] dengan [tepat]' dengan format penomoran 1., 2., 3.`,
+        kegiatanAwal: `Buat Kegiatan Awal (Pendahuluan) interaktif dengan format penomoran berurutan (1. Murid..., 2. Murid..., 3. Murid...).`,
+        kegiatanInti: `Buat Kegiatan Inti dalam format JSON: {"memahami": "...", "mengaplikasikan": "...", "merefleksi": "..."} sesuai sintak model ${formData.modelPembelajaran}, dengan penomoran berurutan 1., 2., 3. berawalan "Murid".`,
+        kegiatanPenutup: `Buat Kegiatan Penutup (Refleksi) dengan format penomoran berurutan (1. Murid..., 2. Murid..., 3. Murid...).`,
         metode: `Saran 3 metode pembelajaran yang paling cocok.`,
         lintasDisiplin: `2 Mata pelajaran yang relevan untuk diintegrasikan.`,
         kemitraan: `Pihak luar (ortu/ahli/instansi) yang bisa diajak kerjasama.`,

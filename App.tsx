@@ -9,7 +9,7 @@ import { Step1Identitas, Step2Konten, Step3Detail } from './components/FormSteps
 import { RPMDocument } from './components/Preview';
 import { Button } from './components/UI';
 import { initialFormData, RPMData, RubrikData, LKMData } from './types';
-import { generateContent, cleanJSON, buildBulkPrompts, buildPrompt, testApiKey } from './services/geminiService';
+import { generateContent, cleanJSON, buildBulkPrompts, buildPrompt, testApiKey, formatNumberedText } from './services/geminiService';
 import { ActivationScreen } from './components/ActivationScreen';
 import { checkIsActivated, clearCredentials, getSavedCredentials, saveCredentials, checkUserOnDb, updateUserGeminiKeyOnDb } from './services/licenseService';
 
@@ -169,20 +169,59 @@ export default function App() {
                if (json) {
                    setFormData(prev => ({
                        ...prev,
-                       intiMemahami: json.memahami || "",
-                       intiMengaplikasikan: json.mengaplikasikan || "",
-                       intiMerefleksi: json.merefleksi || ""
+                       intiMemahami: formatNumberedText(json.memahami || ""),
+                       intiMengaplikasikan: formatNumberedText(json.mengaplikasikan || ""),
+                       intiMerefleksi: formatNumberedText(json.merefleksi || "")
                    }));
                }
           } else {
               const result = await generateContent(prompt, userGeminiKey);
-              setFormData(prev => ({ ...prev, [targetField]: result.trim() }));
+              const formatted = ['tujuanPembelajaran', 'kegiatanAwal', 'kegiatanPenutup'].includes(targetField)
+                  ? formatNumberedText(result.trim())
+                  : result.trim();
+              setFormData(prev => ({ ...prev, [targetField]: formatted }));
           }
       } catch (e: any) {
           console.error(e);
           setAlertModalMessage("Gagal generate AI: " + (e.message || e));
       } finally {
           setLoaders(prev => ({ ...prev, [fieldName]: false }));
+      }
+  };
+
+  const handleGenerateKegiatanAI = async () => {
+      if (!formData.materiPokok || !formData.capaianPembelajaran) {
+          setAlertModalMessage("Mohon isi Materi Pokok dan CP terlebih dahulu.");
+          return;
+      }
+
+      setLoaders(prev => ({ ...prev, kegiatanPembelajaran: true }));
+
+      const prompt = buildBulkPrompts('rpm', formData);
+
+      try {
+          const res = await generateContent(prompt, userGeminiKey);
+          const json = cleanJSON(res);
+          if (json) {
+              setFormData(prev => ({
+                  ...prev,
+                  tujuanPembelajaran: formatNumberedText(json.tujuanPembelajaran || prev.tujuanPembelajaran),
+                  kegiatanAwal: formatNumberedText(json.kegiatanAwal || prev.kegiatanAwal),
+                  intiMemahami: formatNumberedText(json.kegiatanInti?.memahami || prev.intiMemahami),
+                  intiMengaplikasikan: formatNumberedText(json.kegiatanInti?.mengaplikasikan || prev.intiMengaplikasikan),
+                  intiMerefleksi: formatNumberedText(json.kegiatanInti?.merefleksi || prev.intiMerefleksi),
+                  kegiatanPenutup: formatNumberedText(json.kegiatanPenutup || prev.kegiatanPenutup)
+              }));
+              setToastMessage("Berhasil generate seluruh kegiatan pembelajaran!");
+              setTimeout(() => setToastMessage(null), 3000);
+          } else {
+              setAlertModalMessage("Gagal memproses format JSON dari AI. Silakan coba lagi.");
+          }
+      } catch (e: any) {
+          console.error(e);
+          setAlertModalMessage("Gagal generate kegiatan pembelajaran: " + (e.message || e));
+      } finally {
+          setLoaders(prev => ({ ...prev, kegiatanPembelajaran: false }));
       }
   };
 
@@ -583,7 +622,7 @@ export default function App() {
                 <form>
                     {step === 1 && <Step1Identitas formData={formData} setFormData={setFormData} />}
                     {step === 2 && <Step2Konten formData={formData} setFormData={setFormData} uploadedFile={uploadedFile} setUploadedFile={setUploadedFile} additionalContext={additionalContext} setAdditionalContext={setAdditionalContext} generateField={handleGenerateField} loaders={loaders} />}
-                    {step === 3 && <Step3Detail formData={formData} setFormData={setFormData} generateField={handleGenerateField} loaders={loaders} />}
+                    {step === 3 && <Step3Detail formData={formData} setFormData={setFormData} generateField={handleGenerateField} generateKegiatanAI={handleGenerateKegiatanAI} loaders={loaders} />}
                 </form>
                 <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center mt-8 pt-6 border-t border-gray-100 gap-4">
                     <div className="flex flex-col sm:flex-row gap-3">

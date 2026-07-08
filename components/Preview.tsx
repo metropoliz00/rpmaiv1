@@ -65,7 +65,8 @@ const renderListFromText = (text: any) => {
     if (!text) return "-";
     const textStr = typeof text === 'string' ? text : String(text);
     let cleanedText = textStr.replace(/<br\s*\/?>/gi, '\n');
-    const lines = cleanedText.split(/\n/).filter(line => line.trim().length > 0);
+    cleanedText = cleanedText.replace(/([^\n])\s+(\d+[\.\)]\s+)/g, '$1\n$2');
+    const lines = cleanedText.split(/\n/).map(line => line.trim()).filter(line => line.length > 0);
     if (lines.length === 0) return "-";
     
     // Always render as ordered list for consistency, stripping any AI generated numbers/bullets
@@ -224,7 +225,7 @@ export const RPMDocument: React.FC<PreviewProps> = ({
                                         <tbody>
                                             <tr className="border-b border-black">
                                                 <td className="p-2 w-32 font-semibold bg-gray-50 text-gray-700 shadow-inner align-top border-r border-black">Capaian Pembelajaran</td>
-                                                <td className="p-2 text-justify align-top">{formData.capaianPembelajaran}</td>
+                                                <td className="p-2 text-justify align-top">{renderParagraphs(formData.capaianPembelajaran)}</td>
                                             </tr>
                                             <tr className="border-b border-black">
                                                 <td className="p-2 font-semibold bg-gray-50 text-gray-700 shadow-inner align-top border-r border-black">Tujuan Pembelajaran</td>

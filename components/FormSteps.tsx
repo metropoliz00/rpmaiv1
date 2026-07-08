@@ -1,5 +1,5 @@
 import React from 'react';
-import { User, BookOpen, Layout, Upload, FilePlus, List, Loader2, Sparkles, RefreshCw } from 'lucide-react';
+import { User, BookOpen, Layout, Upload, FilePlus, List, Loader2, Sparkles } from 'lucide-react';
 import { InputGroup, SectionTitle } from './UI';
 import { RPMData, dplOptions, getDefaultDurationsForJP, adjustDurations, getMinutesFromAlokasi } from '../types';
 import { getCPBySubjectAndClass } from '../services/capaianPembelajaranService';
@@ -20,6 +20,7 @@ interface Step2Props extends StepProps {
 
 interface Step3Props extends StepProps {
   generateField: (field: string, target?: string) => void;
+  generateKegiatanAI?: () => void;
   loaders: Record<string, boolean>;
 }
 
@@ -248,7 +249,7 @@ const modelOptions = [
   "Cooperative Learning"
 ];
 
-export const Step3Detail: React.FC<Step3Props> = ({ formData, setFormData, generateField, onGenerateBulkRPM, onGenerateBulkLampiran, loaders }) => {
+export const Step3Detail: React.FC<Step3Props> = ({ formData, setFormData, generateField, generateKegiatanAI, loaders }) => {
     const togglePreset = (field: 'alatDigital' | 'lingkunganBelajar' | 'lintasDisiplin' | 'kemitraan', value: string) => {
         const currentVal = formData[field] || '';
         const items = currentVal.split(',').map(s => s.trim()).filter(Boolean);
@@ -446,24 +447,26 @@ export const Step3Detail: React.FC<Step3Props> = ({ formData, setFormData, gener
                         <label className="block text-sm font-bold text-gray-800">Tujuan Pembelajaran</label>
                         <p className="text-xs text-gray-500">AI akan menggunakan data Model, Media, dan Lingkungan yang telah diisi di atas untuk membuat tujuan yang relevan.</p>
                     </div>
-                    {generateField && (
-                        <button
-                            type="button"
-                            onClick={() => generateField('tujuanPembelajaran')}
-                            disabled={loaders?.['tujuanPembelajaran']}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-purple-600 hover:bg-purple-700 disabled:bg-purple-300 text-white transition-all shadow-md shadow-purple-500/10 active:scale-95 disabled:scale-100 disabled:cursor-not-allowed shrink-0"
-                        >
-                            {loaders?.['tujuanPembelajaran'] ? (
-                                <>
-                                    <Loader2 size={13} className="animate-spin" /> Menulis Tujuan...
-                                </>
-                            ) : (
-                                <>
-                                    <Sparkles size={13} className="animate-pulse" /> Generate Tujuan AI
-                                </>
-                            )}
-                        </button>
-                    )}
+                    <div className="flex items-center gap-2">
+                        {generateField && (
+                            <button
+                                type="button"
+                                onClick={() => generateField('tujuanPembelajaran')}
+                                disabled={loaders?.['tujuanPembelajaran']}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-purple-600 hover:bg-purple-700 disabled:bg-purple-300 text-white transition-all shadow-md shadow-purple-500/10 active:scale-95 disabled:scale-100 disabled:cursor-not-allowed shrink-0"
+                            >
+                                {loaders?.['tujuanPembelajaran'] ? (
+                                    <>
+                                        <Loader2 size={13} className="animate-spin" /> Menulis Tujuan...
+                                    </>
+                                ) : (
+                                    <>
+                                        <Sparkles size={13} className="animate-pulse" /> Generate Tujuan AI
+                                    </>
+                                )}
+                            </button>
+                        )}
+                    </div>
                 </div>
                 <textarea 
                     className="w-full p-3.5 border border-gray-300 rounded-lg h-36 text-sm text-gray-800 placeholder-gray-400 focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500 transition-all font-sans leading-relaxed" 
@@ -471,6 +474,34 @@ export const Step3Detail: React.FC<Step3Props> = ({ formData, setFormData, gener
                     onChange={(e) => setFormData({...formData, tujuanPembelajaran: e.target.value})} 
                     placeholder="Contoh: 1. Melalui diskusi kelompok, murid dapat menjelaskan konsep... dengan tepat." 
                 />
+            </div>
+
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-purple-50 p-4 rounded-xl border border-purple-200 gap-3 mb-4">
+                <div>
+                    <h4 className="font-bold text-purple-900 text-sm flex items-center gap-2">
+                        <Sparkles size={16} className="text-purple-600 animate-pulse" />
+                        Generate Seluruh Langkah Pembelajaran AI
+                    </h4>
+                    <p className="text-xs text-purple-700">Generate Kegiatan Awal, Inti (Memahami, Mengaplikasikan, Merefleksi), dan Penutup sekaligus dalam satu klik.</p>
+                </div>
+                {generateKegiatanAI && (
+                    <button
+                        type="button"
+                        onClick={generateKegiatanAI}
+                        disabled={loaders['kegiatanPembelajaran']}
+                        className="px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-purple-300 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-purple-500/20 flex items-center gap-2 shrink-0 active:scale-95"
+                    >
+                        {loaders['kegiatanPembelajaran'] ? (
+                            <>
+                                <Loader2 size={15} className="animate-spin" /> Sedang Generate...
+                            </>
+                        ) : (
+                            <>
+                                <Sparkles size={15} className="animate-pulse" /> Generate Kegiatan AI
+                            </>
+                        )}
+                    </button>
+                )}
             </div>
 
             <SectionTitle title="Langkah Pembelajaran" icon={List} />
@@ -483,30 +514,16 @@ export const Step3Detail: React.FC<Step3Props> = ({ formData, setFormData, gener
                     const intiPct = totalMinutes > 0 ? ((formData.kegiatanIntiDurasi || 0) / totalMinutes) * 100 : 0;
                     const penutupPct = totalMinutes > 0 ? ((formData.kegiatanPenutupDurasi || 0) / totalMinutes) * 100 : 0;
 
-                    const handleDurationChange = (field: 'awal' | 'inti' | 'penutup', val: number) => {
-                        const adjusted = adjustDurations(field, val, totalMinutes, {
-                            awal: formData.kegiatanAwalDurasi || 0,
-                            inti: formData.kegiatanIntiDurasi || 0,
-                            penutup: formData.kegiatanPenutupDurasi || 0
-                        });
-                        setFormData({
-                            ...formData,
-                            kegiatanAwalDurasi: adjusted.awal,
-                            kegiatanIntiDurasi: adjusted.inti,
-                            kegiatanPenutupDurasi: adjusted.penutup
-                        });
-                    };
-
                     return (
-                        <div className="p-4 bg-blue-50 border border-blue-100 rounded-xl space-y-4">
+                        <div className="p-4 bg-blue-50 border border-blue-100 rounded-xl space-y-3">
                             <div className="flex justify-between items-center">
                                 <div>
                                     <h4 className="font-bold text-blue-900 text-sm">Alokasi Waktu Pembelajaran</h4>
                                     <p className="text-xs text-blue-700">Total: <span className="font-bold">{formData.alokasiWaktu}</span> ({totalMinutes} Menit)</p>
                                 </div>
                                 <div className="text-right">
-                                    <span className="text-xs font-semibold px-2 py-1 bg-blue-100 text-blue-800 rounded-full">
-                                        Durasi Terdistribusi
+                                    <span className="text-xs font-semibold px-2.5 py-1 bg-blue-100 text-blue-800 rounded-full">
+                                        Awal: {formData.kegiatanAwalDurasi}m | Inti: {formData.kegiatanIntiDurasi}m | Penutup: {formData.kegiatanPenutupDurasi}m
                                     </span>
                                 </div>
                             </div>
@@ -517,156 +534,145 @@ export const Step3Detail: React.FC<Step3Props> = ({ formData, setFormData, gener
                                 <div style={{ width: `${intiPct}%` }} className="bg-blue-500 h-full transition-all duration-300" title={`Inti: ${formData.kegiatanIntiDurasi} Menit`} />
                                 <div style={{ width: `${penutupPct}%` }} className="bg-green-500 h-full transition-all duration-300" title={`Penutup: ${formData.kegiatanPenutupDurasi} Menit`} />
                             </div>
+                        </div>
+                    );
+                })() : (
+                    <div className="p-4 bg-yellow-50 border border-yellow-100 rounded-xl text-xs text-yellow-800 flex items-center gap-2">
+                        <span>⚠️</span>
+                        <span><span className="font-bold">Alokasi Waktu belum dipilih.</span> Silakan pilih JP di langkah "Identitas & Konten" terlebih dahulu agar durasi kegiatan awal, inti, dan penutup dapat terdistribusi secara otomatis.</span>
+                    </div>
+                )}
 
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
-                                {/* Kegiatan Awal */}
-                                <div className="space-y-1">
-                                    <div className="flex justify-between text-xs font-bold text-orange-900">
-                                        <span>Awal (Pendahuluan)</span>
-                                        <span>{formData.kegiatanAwalDurasi} menit</span>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <button 
-                                            type="button"
-                                            onClick={() => handleDurationChange('awal', (formData.kegiatanAwalDurasi || 0) - 5)}
-                                            className="h-10 px-3 bg-white border border-gray-300 rounded-lg hover:bg-orange-50 text-orange-700 font-bold text-xs active:bg-orange-100 transition-colors shrink-0"
-                                        >
-                                            -5m
-                                        </button>
-                                        <input 
-                                            type="number"
-                                            min="0"
-                                            max={totalMinutes}
-                                            value={formData.kegiatanAwalDurasi}
-                                            onChange={(e) => handleDurationChange('awal', parseInt(e.target.value) || 0)}
-                                            className="w-full text-center h-10 border border-gray-300 rounded-lg text-sm font-semibold bg-white"
-                                        />
-                                        <button 
-                                            type="button"
-                                            onClick={() => handleDurationChange('awal', (formData.kegiatanAwalDurasi || 0) + 5)}
-                                            className="h-10 px-3 bg-white border border-gray-300 rounded-lg hover:bg-orange-50 text-orange-700 font-bold text-xs active:bg-orange-100 transition-colors shrink-0"
-                                        >
-                                            +5m
-                                        </button>
-                                    </div>
-                                </div>
-
-                                {/* Kegiatan Inti */}
-                                <div className="space-y-1">
-                                    <div className="flex justify-between text-xs font-bold text-blue-900">
-                                        <span>Inti (Eksplorasi)</span>
-                                        <span>{formData.kegiatanIntiDurasi} menit</span>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <button 
-                                            type="button"
-                                            onClick={() => handleDurationChange('inti', (formData.kegiatanIntiDurasi || 0) - 5)}
-                                            className="h-10 px-3 bg-white border border-gray-300 rounded-lg hover:bg-blue-50 text-blue-700 font-bold text-xs active:bg-blue-100 transition-colors shrink-0"
-                                        >
-                                            -5m
-                                        </button>
-                                        <input 
-                                            type="number"
-                                            min="0"
-                                            max={totalMinutes}
-                                            value={formData.kegiatanIntiDurasi}
-                                            onChange={(e) => handleDurationChange('inti', parseInt(e.target.value) || 0)}
-                                            className="w-full text-center h-10 border border-gray-300 rounded-lg text-sm font-semibold bg-white"
-                                        />
-                                        <button 
-                                            type="button"
-                                            onClick={() => handleDurationChange('inti', (formData.kegiatanIntiDurasi || 0) + 5)}
-                                            className="h-10 px-3 bg-white border border-gray-300 rounded-lg hover:bg-blue-50 text-blue-700 font-bold text-xs active:bg-blue-100 transition-colors shrink-0"
-                                        >
-                                            +5m
-                                        </button>
-                                    </div>
-                                </div>
-
-                                {/* Kegiatan Penutup */}
-                                <div className="space-y-1">
-                                    <div className="flex justify-between text-xs font-bold text-green-900">
-                                        <span>Penutup (Refleksi)</span>
-                                        <span>{formData.kegiatanPenutupDurasi} menit</span>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <button 
-                                            type="button"
-                                            onClick={() => handleDurationChange('penutup', (formData.kegiatanPenutupDurasi || 0) - 5)}
-                                            className="h-10 px-3 bg-white border border-gray-300 rounded-lg hover:bg-green-50 text-green-700 font-bold text-xs active:bg-green-100 transition-colors shrink-0"
-                                        >
-                                            -5m
-                                        </button>
-                                        <input 
-                                            type="number"
-                                            min="0"
-                                            max={totalMinutes}
-                                            value={formData.kegiatanPenutupDurasi}
-                                            onChange={(e) => handleDurationChange('penutup', parseInt(e.target.value) || 0)}
-                                            className="w-full text-center h-10 border border-gray-300 rounded-lg text-sm font-semibold bg-white"
-                                        />
-                                        <button 
-                                            type="button"
-                                            onClick={() => handleDurationChange('penutup', (formData.kegiatanPenutupDurasi || 0) + 5)}
-                                            className="h-10 px-3 bg-white border border-gray-300 rounded-lg hover:bg-green-50 text-green-700 font-bold text-xs active:bg-green-100 transition-colors shrink-0"
-                                        >
-                                            +5m
-                                        </button>
-                                    </div>
-                                </div>
-                             </div>
-                         </div>
-                     );
-                 })() : (
-                     <div className="p-4 bg-yellow-50 border border-yellow-100 rounded-xl text-xs text-yellow-800 flex items-center gap-2">
-                         <span>⚠️</span>
-                         <span><span className="font-bold">Alokasi Waktu belum dipilih.</span> Silakan pilih JP di langkah "Identitas & Konten" terlebih dahulu agar durasi kegiatan awal, inti, dan penutup dapat terdistribusi secara otomatis.</span>
-                     </div>
-                 )}
-
-                 <div className="flex justify-between items-center mb-2">
-                     <label className="block text-sm font-bold text-gray-700">Kegiatan Awal</label>
-                     <button type="button" onClick={() => generateField('kegiatanAwal')} disabled={loaders['kegiatanAwal']} className="px-3 py-1 bg-purple-600 text-white rounded-lg text-xs font-semibold hover:bg-purple-700 flex items-center gap-1.5 disabled:opacity-50">
-                         {loaders['kegiatanAwal'] ? <Loader2 size={14} className="animate-spin"/> : <Sparkles size={14}/>}
-                         Generate Awal AI
-                     </button>
-                 </div>
-                 <InputGroup label="" subLabel="Pendahuluan, Apersepsi, Pemantik">
+                {/* Kegiatan Awal */}
+                <div className="space-y-2">
+                    <div className="flex justify-between items-center bg-orange-50 p-3 rounded-xl border border-orange-200">
+                        <div>
+                            <label className="block text-sm font-bold text-orange-900">Kegiatan Awal</label>
+                            <span className="text-xs text-orange-700">Pendahuluan, Apersepsi, Pemantik</span>
+                        </div>
+                        {formData.alokasiWaktu && (
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs font-semibold text-orange-900">Durasi:</span>
+                                <button 
+                                    type="button"
+                                    onClick={() => {
+                                        const total = getMinutesFromAlokasi(formData.alokasiWaktu);
+                                        const adj = adjustDurations('awal', (formData.kegiatanAwalDurasi || 0) - 5, total, { awal: formData.kegiatanAwalDurasi || 0, inti: formData.kegiatanIntiDurasi || 0, penutup: formData.kegiatanPenutupDurasi || 0 });
+                                        setFormData({...formData, kegiatanAwalDurasi: adj.awal, kegiatanIntiDurasi: adj.inti, kegiatanPenutupDurasi: adj.penutup});
+                                    }}
+                                    className="h-8 px-2 bg-white border border-orange-300 rounded-lg hover:bg-orange-100 text-orange-800 font-bold text-xs"
+                                >
+                                    -5m
+                                </button>
+                                <span className="text-xs font-bold w-12 text-center bg-white py-1 px-2 border border-orange-300 rounded-lg">{formData.kegiatanAwalDurasi} m</span>
+                                <button 
+                                    type="button"
+                                    onClick={() => {
+                                        const total = getMinutesFromAlokasi(formData.alokasiWaktu);
+                                        const adj = adjustDurations('awal', (formData.kegiatanAwalDurasi || 0) + 5, total, { awal: formData.kegiatanAwalDurasi || 0, inti: formData.kegiatanIntiDurasi || 0, penutup: formData.kegiatanPenutupDurasi || 0 });
+                                        setFormData({...formData, kegiatanAwalDurasi: adj.awal, kegiatanIntiDurasi: adj.inti, kegiatanPenutupDurasi: adj.penutup});
+                                    }}
+                                    className="h-8 px-2 bg-white border border-orange-300 rounded-lg hover:bg-orange-100 text-orange-800 font-bold text-xs"
+                                >
+                                    +5m
+                                </button>
+                            </div>
+                        )}
+                    </div>
                     <textarea className="w-full p-3 border border-gray-300 rounded-lg h-40 font-mono text-sm" value={formData.kegiatanAwal} onChange={(e) => setFormData({...formData, kegiatanAwal: e.target.value})} placeholder="Masukkan kegiatan awal" />
-                </InputGroup>
+                </div>
                 
-                <div className="border-t pt-4">
-                    <div className="flex justify-between items-center mb-4">
-                         <label className="block text-sm font-bold text-gray-700">Kegiatan Inti</label>
-                         <button type="button" onClick={() => generateField('kegiatanInti')} disabled={loaders['kegiatanInti']} className="px-3 py-1 bg-purple-600 text-white rounded-lg text-xs font-semibold hover:bg-purple-700 flex items-center gap-1.5 disabled:opacity-50">
-                             {loaders['kegiatanInti'] ? <Loader2 size={14} className="animate-spin"/> : <Sparkles size={14}/>}
-                             Generate Inti AI
-                         </button>
+                {/* Kegiatan Inti */}
+                <div className="border-t pt-4 space-y-3">
+                    <div className="flex justify-between items-center bg-blue-50 p-3 rounded-xl border border-blue-200">
+                        <div>
+                            <label className="block text-sm font-bold text-blue-900">Kegiatan Inti</label>
+                            <span className="text-xs text-blue-700">Eksplorasi & Elaborasi (Memahami, Mengaplikasikan, Merefleksi)</span>
+                        </div>
+                        {formData.alokasiWaktu && (
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs font-semibold text-blue-900">Durasi:</span>
+                                <button 
+                                    type="button"
+                                    onClick={() => {
+                                        const total = getMinutesFromAlokasi(formData.alokasiWaktu);
+                                        const adj = adjustDurations('inti', (formData.kegiatanIntiDurasi || 0) - 5, total, { awal: formData.kegiatanAwalDurasi || 0, inti: formData.kegiatanIntiDurasi || 0, penutup: formData.kegiatanPenutupDurasi || 0 });
+                                        setFormData({...formData, kegiatanAwalDurasi: adj.awal, kegiatanIntiDurasi: adj.inti, kegiatanPenutupDurasi: adj.penutup});
+                                    }}
+                                    className="h-8 px-2 bg-white border border-blue-300 rounded-lg hover:bg-blue-100 text-blue-800 font-bold text-xs"
+                                >
+                                    -5m
+                                </button>
+                                <span className="text-xs font-bold w-12 text-center bg-white py-1 px-2 border border-blue-300 rounded-lg">{formData.kegiatanIntiDurasi} m</span>
+                                <button 
+                                    type="button"
+                                    onClick={() => {
+                                        const total = getMinutesFromAlokasi(formData.alokasiWaktu);
+                                        const adj = adjustDurations('inti', (formData.kegiatanIntiDurasi || 0) + 5, total, { awal: formData.kegiatanAwalDurasi || 0, inti: formData.kegiatanIntiDurasi || 0, penutup: formData.kegiatanPenutupDurasi || 0 });
+                                        setFormData({...formData, kegiatanAwalDurasi: adj.awal, kegiatanIntiDurasi: adj.inti, kegiatanPenutupDurasi: adj.penutup});
+                                    }}
+                                    className="h-8 px-2 bg-white border border-blue-300 rounded-lg hover:bg-blue-100 text-blue-800 font-bold text-xs"
+                                >
+                                    +5m
+                                </button>
+                            </div>
+                        )}
                     </div>
                     
                     <div className="space-y-4 pl-4 border-l-4 border-blue-100">
-                        <InputGroup label="1. Memahami (Awal Model)" subLabel="Aktivitas murid mengamati/menanya">
-                            <textarea className="w-full p-3 border border-gray-300 rounded-lg h-32 font-mono text-sm" value={formData.intiMemahami} onChange={(e) => setFormData({...formData, intiMemahami: e.target.value})} placeholder="Contoh: Murid melakukan observasi..." />
-                        </InputGroup>
-                         <InputGroup label="2. Mengaplikasikan (Tengah Model)" subLabel="Aktivitas murid mencoba/diskusi">
-                            <textarea className="w-full p-3 border border-gray-300 rounded-lg h-32 font-mono text-sm" value={formData.intiMengaplikasikan} onChange={(e) => setFormData({...formData, intiMengaplikasikan: e.target.value})} placeholder="Contoh: Murid berdiskusi..." />
-                        </InputGroup>
-                         <InputGroup label="3. Merefleksi (Akhir Model)" subLabel="Aktivitas murid menyimpulkan">
-                            <textarea className="w-full p-3 border border-gray-300 rounded-lg h-32 font-mono text-sm" value={formData.intiMerefleksi} onChange={(e) => setFormData({...formData, intiMerefleksi: e.target.value})} placeholder="Contoh: Murid menyimpulkan..." />
-                        </InputGroup>
+                        <div>
+                            <label className="block text-xs font-bold text-gray-700 mb-1">1. Memahami (Awal Model)</label>
+                            <textarea className="w-full p-3 border border-gray-300 rounded-lg h-32 font-mono text-sm" value={formData.intiMemahami} onChange={(e) => setFormData({...formData, intiMemahami: e.target.value})} placeholder="Contoh: 1. Murid melakukan observasi..." />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-gray-700 mb-1">2. Mengaplikasikan (Tengah Model)</label>
+                            <textarea className="w-full p-3 border border-gray-300 rounded-lg h-32 font-mono text-sm" value={formData.intiMengaplikasikan} onChange={(e) => setFormData({...formData, intiMengaplikasikan: e.target.value})} placeholder="Contoh: 1. Murid berdiskusi..." />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-gray-700 mb-1">3. Merefleksi (Akhir Model)</label>
+                            <textarea className="w-full p-3 border border-gray-300 rounded-lg h-32 font-mono text-sm" value={formData.intiMerefleksi} onChange={(e) => setFormData({...formData, intiMerefleksi: e.target.value})} placeholder="Contoh: 1. Murid menyimpulkan..." />
+                        </div>
                     </div>
                 </div>
 
-                <div className="flex justify-between items-center mb-2 mt-4">
-                    <label className="block text-sm font-bold text-gray-700">Kegiatan Penutup</label>
-                    <button type="button" onClick={() => generateField('kegiatanPenutup')} disabled={loaders['kegiatanPenutup']} className="px-3 py-1 bg-purple-600 text-white rounded-lg text-xs font-semibold hover:bg-purple-700 flex items-center gap-1.5 disabled:opacity-50">
-                        {loaders['kegiatanPenutup'] ? <Loader2 size={14} className="animate-spin"/> : <Sparkles size={14}/>}
-                        Generate Penutup AI
-                    </button>
-                </div>
-                <InputGroup label="" subLabel="Refleksi, Apresiasi, Tindak Lanjut">
+                {/* Kegiatan Penutup */}
+                <div className="border-t pt-4 space-y-2">
+                    <div className="flex justify-between items-center bg-green-50 p-3 rounded-xl border border-green-200">
+                        <div>
+                            <label className="block text-sm font-bold text-green-900">Kegiatan Penutup</label>
+                            <span className="text-xs text-green-700">Refleksi, Apresiasi, Tindak Lanjut</span>
+                        </div>
+                        {formData.alokasiWaktu && (
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs font-semibold text-green-900">Durasi:</span>
+                                <button 
+                                    type="button"
+                                    onClick={() => {
+                                        const total = getMinutesFromAlokasi(formData.alokasiWaktu);
+                                        const adj = adjustDurations('penutup', (formData.kegiatanPenutupDurasi || 0) - 5, total, { awal: formData.kegiatanAwalDurasi || 0, inti: formData.kegiatanIntiDurasi || 0, penutup: formData.kegiatanPenutupDurasi || 0 });
+                                        setFormData({...formData, kegiatanAwalDurasi: adj.awal, kegiatanIntiDurasi: adj.inti, kegiatanPenutupDurasi: adj.penutup});
+                                    }}
+                                    className="h-8 px-2 bg-white border border-green-300 rounded-lg hover:bg-green-100 text-green-800 font-bold text-xs"
+                                >
+                                    -5m
+                                </button>
+                                <span className="text-xs font-bold w-12 text-center bg-white py-1 px-2 border border-green-300 rounded-lg">{formData.kegiatanPenutupDurasi} m</span>
+                                <button 
+                                    type="button"
+                                    onClick={() => {
+                                        const total = getMinutesFromAlokasi(formData.alokasiWaktu);
+                                        const adj = adjustDurations('penutup', (formData.kegiatanPenutupDurasi || 0) + 5, total, { awal: formData.kegiatanAwalDurasi || 0, inti: formData.kegiatanIntiDurasi || 0, penutup: formData.kegiatanPenutupDurasi || 0 });
+                                        setFormData({...formData, kegiatanAwalDurasi: adj.awal, kegiatanIntiDurasi: adj.inti, kegiatanPenutupDurasi: adj.penutup});
+                                    }}
+                                    className="h-8 px-2 bg-white border border-green-300 rounded-lg hover:bg-green-100 text-green-800 font-bold text-xs"
+                                >
+                                    +5m
+                                </button>
+                            </div>
+                        )}
+                    </div>
                     <textarea className="w-full p-3 border border-gray-300 rounded-lg h-40 font-mono text-sm" value={formData.kegiatanPenutup} onChange={(e) => setFormData({...formData, kegiatanPenutup: e.target.value})} placeholder="Masukkan kegiatan penutup" />
-                </InputGroup>
+                </div>
             </div>
         </div>
     );
