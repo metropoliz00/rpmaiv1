@@ -187,6 +187,7 @@ export const Step2Konten: React.FC<Step2Props> = ({ formData, setFormData, uploa
         </InputGroup>
         <InputGroup label="Semester">
              <select className="w-full p-3 border border-gray-300 rounded-lg bg-white" value={formData.semester} onChange={(e) => setFormData({...formData, semester: e.target.value})}>
+                <option value="">Pilih Semester</option>
                 <option value="1 (Ganjil)">1 (Ganjil)</option>
                 <option value="2 (Genap)">2 (Genap)</option>
             </select>
@@ -361,7 +362,7 @@ export const Step3Detail: React.FC<Step3Props> = ({ formData, setFormData, gener
                         if (e.target.value === 'Lainnya') setFormData({...formData, modelPembelajaran: ''});
                         else setFormData({...formData, modelPembelajaran: e.target.value});
                     }}>
-                        <option value="">Pilihan Model</option>
+                        <option value="">Pilih Model Pembelajaran</option>
                         {modelOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
                         <option value="Lainnya">Lainnya</option>
                     </select>
