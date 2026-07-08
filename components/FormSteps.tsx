@@ -121,25 +121,7 @@ export const Step2Konten: React.FC<Step2Props> = ({ formData, setFormData, uploa
     <div className="animate-fade-in-up">
       <SectionTitle title="Detail Pembelajaran & Konteks" icon={BookOpen} />
       
-      <div className="mb-6 p-5 bg-purple-50/50 rounded-xl border border-purple-100 shadow-sm">
-          <h4 className="font-bold text-purple-900 mb-3 text-sm flex items-center gap-2"><Sparkles size={16} className="text-purple-600 animate-pulse"/> Tambahan Konteks AI (Opsional)</h4>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1.5">Upload File Pendukung (PDF/Doc)</label>
-                <div className="flex items-center gap-2">
-                    <label className="cursor-pointer bg-white border border-gray-300 text-gray-700 px-3 py-2 rounded-lg text-sm hover:bg-gray-50 flex items-center gap-2 transition-all">
-                        <FilePlus size={16} className="text-purple-600" /> Pilih File
-                        <input type="file" accept=".pdf,.doc,.docx,.txt" onChange={handleFileUpload} className="hidden" />
-                    </label>
-                    <span className="text-xs text-gray-500 italic truncate max-w-[150px] sm:max-w-xs">{uploadedFile ? uploadedFile.name : "Belum ada file"}</span>
-                </div>
-            </div>
-            <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1.5">Paste Materi/Teks Tambahan</label>
-                <textarea className="w-full p-2.5 border border-gray-300 rounded-lg text-xs h-20 focus:ring-1 focus:ring-purple-500 focus:border-purple-500" placeholder="Paste ringkasan materi atau instruksi khusus di sini untuk memperkuat hasil AI..." value={additionalContext} onChange={(e) => setAdditionalContext(e.target.value)}></textarea>
-            </div>
-          </div>
-      </div>
+
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <InputGroup label="Mata Pelajaran">
