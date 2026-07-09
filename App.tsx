@@ -971,14 +971,25 @@ export default function App() {
       {/* Key Status Modal */}
       {showSettings && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in print:hidden">
-            <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl relative animate-fade-in-up">
-                <div className="flex items-center gap-3 mb-4">
-                    <div className={`p-3 rounded-xl ${Boolean(userGeminiKey && userGeminiKey.trim() !== "" && !userGeminiKey.includes("DUMMY")) ? 'bg-emerald-100 text-emerald-600' : 'bg-yellow-100 text-yellow-600'}`}>
-                        <Key size={28} />
+            <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl relative animate-fade-in-up border border-slate-100">
+                <div className="flex items-start gap-4 mb-5">
+                    <div className={`p-3 rounded-2xl ${Boolean(userGeminiKey && userGeminiKey.trim() !== "" && !userGeminiKey.includes("DUMMY")) ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-amber-50 text-amber-600 border border-amber-100'}`}>
+                        <Key size={24} />
                     </div>
                     <div>
-                        <h2 className="text-lg font-bold text-slate-900">Status Google Gemini API Key</h2>
-                        <p className="text-xs text-slate-500">Informasi sumber API Key yang aktif pada aplikasi</p>
+                        <h2 className="text-base font-bold text-slate-900 mb-1">Status Google Gemini API Key</h2>
+                        <p className="text-sm text-slate-600 leading-relaxed mb-3">Informasi sumber API Key yang aktif pada sesi aplikasi Anda saat ini:</p>
+                        <div>
+                          {Boolean(userGeminiKey && userGeminiKey.trim() !== "" && !userGeminiKey.includes("DUMMY")) ? (
+                            <span className="inline-flex items-center gap-1.5 text-emerald-700 font-semibold bg-emerald-50 px-2.5 py-1 rounded-xl text-xs border border-emerald-200 shadow-sm">
+                              <Sparkles size={14} className="text-emerald-600 animate-pulse" /> API Pribadi (Aktif)
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1.5 text-amber-700 font-semibold bg-amber-50 px-2.5 py-1 rounded-xl text-xs border border-amber-200 shadow-sm">
+                              <Sparkles size={14} className="text-amber-600" /> API Sistem (Default)
+                            </span>
+                          )}
+                        </div>
                     </div>
                 </div>
 

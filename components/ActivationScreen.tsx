@@ -622,13 +622,13 @@ export const ActivationScreen: React.FC<ActivationScreenProps> = ({ onActivated 
                             </div>
                             <div className="text-[10px] text-slate-600 flex items-center gap-1.5 mt-1">
                               <span>API Key Gemini:</span>
-                              {user.geminiApiKey ? (
+                              {user.geminiApiKey && !user.geminiApiKey.includes("DUMMY") ? (
                                 <span className="inline-flex items-center gap-1 text-emerald-700 font-semibold bg-emerald-50 px-1.5 py-0.5 rounded text-[10px] border border-emerald-100">
-                                  <Sparkles size={11} className="text-emerald-600 animate-pulse" /> Terkonfigurasi (Aktif)
+                                  <Sparkles size={11} className="text-emerald-600 animate-pulse" /> API Pribadi (Aktif)
                                 </span>
                               ) : (
-                                <span className="inline-flex items-center gap-1 text-red-700 font-semibold bg-red-50 px-1.5 py-0.5 rounded text-[10px] border border-red-100">
-                                  Belum Ada Key
+                                <span className="inline-flex items-center gap-1 text-amber-700 font-semibold bg-amber-50 px-1.5 py-0.5 rounded text-[10px] border border-amber-100">
+                                  <Sparkles size={11} className="text-amber-600" /> API Sistem (Default)
                                 </span>
                               )}
                             </div>
