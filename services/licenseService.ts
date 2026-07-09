@@ -152,11 +152,11 @@ export const deleteUser = (email: string): void => {
 const mapToRegisteredUser = (row: any): RegisteredUser => {
   return {
     email: row.email,
-    geminiApiKey: row.gemini_api_key,
-    licenseKey: row.license_key,
-    isActive: row.is_active,
-    showAttachments: row.show_attachments !== undefined && row.show_attachments !== null ? row.show_attachments : true,
-    createdAt: row.created_at
+    geminiApiKey: row.gemini_api_key || row.geminiApiKey || "",
+    licenseKey: row.license_key || row.licenseKey || "",
+    isActive: row.is_active !== undefined ? row.is_active : (row.isActive !== undefined ? row.isActive : true),
+    showAttachments: row.show_attachments !== undefined && row.show_attachments !== null ? row.show_attachments : (row.showAttachments !== undefined ? row.showAttachments : true),
+    createdAt: row.created_at || row.createdAt || new Date().toISOString()
   };
 };
 
@@ -215,14 +215,16 @@ export const registerUserOnDb = async (email: string, geminiApiKey: string, isAc
   try {
     const { data: existing, error } = await supabase
       .from('users')
-      .select('created_at, show_attachments')
+      .select('*')
       .eq('email', cleanEmail)
       .maybeSingle();
 
     if (existing && !error) {
-      createdAt = existing.created_at;
+      createdAt = existing.created_at || existing.createdAt || createdAt;
       if (existing.show_attachments !== undefined && existing.show_attachments !== null) {
         existingShowAttachments = existing.show_attachments;
+      } else if (existing.showAttachments !== undefined && existing.showAttachments !== null) {
+        existingShowAttachments = existing.showAttachments;
       }
     }
   } catch (e) {
@@ -239,11 +241,19 @@ export const registerUserOnDb = async (email: string, geminiApiKey: string, isAc
   };
 
   try {
-    const { error } = await supabase
+    const dbRow = mapToDbRow(newUser);
+    let { error } = await supabase
       .from('users')
-      .upsert(mapToDbRow(newUser));
+      .upsert(dbRow);
 
-    if (error) throw error;
+    if (error) {
+      // Fallback without show_attachments if column doesn't exist in Supabase table
+      const { email: e_val, gemini_api_key, license_key, is_active, created_at } = dbRow;
+      const { error: error2 } = await supabase
+        .from('users')
+        .upsert({ email: e_val, gemini_api_key, license_key, is_active, created_at });
+      if (error2) throw error2;
+    }
     
     // Sync cache
     const cached = getRegisteredUsers();
@@ -256,6 +266,8 @@ export const registerUserOnDb = async (email: string, geminiApiKey: string, isAc
     saveRegisteredUsers(cached);
   } catch (e) {
     console.error("Error saving user to DB:", e);
+    // Still save to local cache so app functions smoothly
+    registerUser(email, geminiApiKey, isActive, showAttachments);
   }
 
   return newUser;

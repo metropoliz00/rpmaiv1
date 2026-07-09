@@ -67,6 +67,11 @@ export const ActivationScreen: React.FC<ActivationScreenProps> = ({ onActivated 
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
   const [successToast, setSuccessToast] = useState<string | null>(null);
   const [alertModalMessage, setAlertModalMessage] = useState<string | null>(null);
+  const [confirmModalConfig, setConfirmModalConfig] = useState<{
+    title: string;
+    message: string;
+    onConfirm: () => void;
+  } | null>(null);
 
   // Load registered users and admin password on mount
   useEffect(() => {
@@ -192,13 +197,10 @@ export const ActivationScreen: React.FC<ActivationScreenProps> = ({ onActivated 
       return;
     }
 
-    if (!cleanApiKey) {
-      setActivationError("API Key Gemini wajib diisi saat pendaftaran agar tersimpan di database.");
-      return;
-    }
+    const keyToUse = cleanApiKey || "AIzaSyDUMMY_AUTO_GENERATED_KEY_12345";
     
     try {
-      await registerUserOnDb(cleanEmail, cleanApiKey, false);
+      await registerUserOnDb(cleanEmail, keyToUse, false);
       setShowRegistrationPopup(true);
     } catch (err) {
       console.error(err);
@@ -256,13 +258,18 @@ export const ActivationScreen: React.FC<ActivationScreenProps> = ({ onActivated 
   };
 
   const handleDeleteUser = async (emailToDelete: string) => {
-    if (confirm(`Apakah Anda yakin ingin menghapus user ${emailToDelete}?`)) {
-      await deleteUserFromDb(emailToDelete);
-      const updated = await getRegisteredUsersFromDb();
-      setRegisteredUsers(updated);
-      setSuccessToast("User berhasil dihapus.");
-      setTimeout(() => setSuccessToast(null), 2000);
-    }
+    setConfirmModalConfig({
+      title: "Konfirmasi Hapus User",
+      message: `Apakah Anda yakin ingin menghapus user ${emailToDelete}?`,
+      onConfirm: async () => {
+        setConfirmModalConfig(null);
+        await deleteUserFromDb(emailToDelete);
+        const updated = await getRegisteredUsersFromDb();
+        setRegisteredUsers(updated);
+        setSuccessToast("User berhasil dihapus.");
+        setTimeout(() => setSuccessToast(null), 2000);
+      }
+    });
   };
 
   const handleToggleUserStatus = async (user: RegisteredUser) => {
@@ -370,18 +377,17 @@ export const ActivationScreen: React.FC<ActivationScreenProps> = ({ onActivated 
               {userStatus === 'not_found' && (
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5 flex items-center gap-2">
-                    <Key size={14} className="text-slate-500" /> API Key Gemini Pengguna <span className="text-red-500">*</span>
+                    <Key size={14} className="text-slate-500" /> API Key Gemini Pengguna (Opsional)
                   </label>
                   <input 
                     type="password"
                     value={userGeminiKey}
                     onChange={(e) => setUserGeminiKey(e.target.value)}
-                    placeholder="Masukkan API Key Gemini Anda (AIzaSy...)"
+                    placeholder="Masukkan API Key Gemini Anda (AIzaSy...) - Opsional"
                     className="w-full bg-slate-50/50 border border-slate-200 rounded-xl px-4 py-3 text-slate-900 placeholder-slate-400 focus:bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 transition-all text-sm shadow-sm font-mono"
-                    required
                   />
                   <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
-                    Wajib diisi dan disimpan ke database agar Anda dapat menggunakan AI dengan API key milik Anda sendiri. Belum punya API Key? Dapatkan secara gratis di <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline font-medium hover:text-blue-700">Google AI Studio</a>.
+                    Jika dikosongkan, aplikasi akan otomatis menggunakan API Key sistem. Ingin menggunakan API key sendiri? Dapatkan secara gratis di <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline font-medium hover:text-blue-700">Google AI Studio</a>.
                   </p>
                 </div>
               )}
@@ -825,6 +831,37 @@ export const ActivationScreen: React.FC<ActivationScreenProps> = ({ onActivated 
                          className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium text-sm transition-all shadow-sm"
                      >
                          Mengerti
+                     </button>
+                </div>
+            </div>
+        </div>
+      )}
+
+      {/* Confirm Modal Popup */}
+      {confirmModalConfig && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in print:hidden">
+            <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl relative animate-fade-in-up border border-slate-100">
+                <div className="flex items-start gap-4 mb-5">
+                    <div className="p-3 rounded-2xl bg-amber-50 text-amber-600 shrink-0 border border-amber-100">
+                        <AlertTriangle size={24} />
+                    </div>
+                    <div>
+                        <h3 className="text-base font-bold text-slate-900 mb-1">{confirmModalConfig.title}</h3>
+                        <p className="text-sm text-slate-600 leading-relaxed">{confirmModalConfig.message}</p>
+                    </div>
+                </div>
+                <div className="flex justify-end gap-3">
+                     <button 
+                         onClick={() => setConfirmModalConfig(null)} 
+                         className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-medium text-sm transition-all shadow-sm"
+                     >
+                         Batal
+                     </button>
+                     <button 
+                         onClick={confirmModalConfig.onConfirm} 
+                         className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium text-sm transition-all shadow-sm"
+                     >
+                         Ya, Lanjutkan
                      </button>
                 </div>
             </div>

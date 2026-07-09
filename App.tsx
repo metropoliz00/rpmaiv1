@@ -38,6 +38,11 @@ export default function App() {
   const [showPreview, setShowPreview] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [alertModalMessage, setAlertModalMessage] = useState<string | null>(null);
+  const [confirmModalConfig, setConfirmModalConfig] = useState<{
+    title: string;
+    message: string;
+    onConfirm: () => void;
+  } | null>(null);
   const [showDevInfo, setShowDevInfo] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showApiKey, setShowApiKey] = useState(false);
@@ -46,7 +51,7 @@ export default function App() {
   const [isTestingKey, setIsTestingKey] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
 
-  // Load Gemini Key and showAttachments from DB on activation
+  // Load Gemini Key and showAttachments from DB on activation with polling
   React.useEffect(() => {
     const loadUserInfo = async () => {
       if (isActivated) {
@@ -63,6 +68,10 @@ export default function App() {
               if (user.showAttachments !== undefined) {
                 setCurrentUserShowAttachments(user.showAttachments);
               }
+              if (user.isActive === false) {
+                clearCredentials();
+                setIsActivated(false);
+              }
             }
           } catch (e) {
             console.error("Gagal memuat info user dari cloud:", e);
@@ -71,6 +80,8 @@ export default function App() {
       }
     };
     loadUserInfo();
+    const interval = setInterval(loadUserInfo, 6000);
+    return () => clearInterval(interval);
   }, [isActivated]);
 
   React.useEffect(() => {
@@ -174,18 +185,23 @@ export default function App() {
   }, [formData]);
 
   const handleClearData = () => {
-    if (window.confirm("Apakah Anda yakin ingin mengosongkan semua data form dan hasil AI?")) {
-      setFormData(initialFormData);
-      setGeneratedSoalContent("");
-      setGeneratedMateriContent("");
-      setGeneratedRubrikContent({ sikap: [], keterampilan: [] });
-      setGeneratedLKMContent(null);
-      setUploadedFile(null);
-      setAdditionalContext("");
-      setStep(1);
-      setToastMessage("Form berhasil dikosongkan.");
-      setTimeout(() => setToastMessage(null), 3000);
-    }
+    setConfirmModalConfig({
+      title: "Konfirmasi Kosongkan Form",
+      message: "Apakah Anda yakin ingin mengosongkan semua data form dan hasil AI?",
+      onConfirm: () => {
+        setConfirmModalConfig(null);
+        setFormData(initialFormData);
+        setGeneratedSoalContent("");
+        setGeneratedMateriContent("");
+        setGeneratedRubrikContent({ sikap: [], keterampilan: [] });
+        setGeneratedLKMContent(null);
+        setUploadedFile(null);
+        setAdditionalContext("");
+        setStep(1);
+        setToastMessage("Form berhasil dikosongkan.");
+        setTimeout(() => setToastMessage(null), 3000);
+      }
+    });
   };
 
   // Welcome effect on successful activation
@@ -999,6 +1015,37 @@ export default function App() {
                          className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium text-sm transition-all shadow-sm"
                      >
                          Mengerti
+                     </button>
+                </div>
+            </div>
+        </div>
+      )}
+
+      {/* Confirm Modal Popup */}
+      {confirmModalConfig && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in print:hidden">
+            <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl relative animate-fade-in-up border border-slate-100">
+                <div className="flex items-start gap-4 mb-5">
+                    <div className="p-3 rounded-2xl bg-amber-50 text-amber-600 shrink-0 border border-amber-100">
+                        <AlertTriangle size={24} />
+                    </div>
+                    <div>
+                        <h3 className="text-base font-bold text-slate-900 mb-1">{confirmModalConfig.title}</h3>
+                        <p className="text-sm text-slate-600 leading-relaxed">{confirmModalConfig.message}</p>
+                    </div>
+                </div>
+                <div className="flex justify-end gap-3">
+                     <button 
+                         onClick={() => setConfirmModalConfig(null)} 
+                         className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-medium text-sm transition-all shadow-sm"
+                     >
+                         Batal
+                     </button>
+                     <button 
+                         onClick={confirmModalConfig.onConfirm} 
+                         className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium text-sm transition-all shadow-sm"
+                     >
+                         Ya, Lanjutkan
                      </button>
                 </div>
             </div>
