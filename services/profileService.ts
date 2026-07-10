@@ -88,26 +88,26 @@ export async function saveUserProfileToDb(email: string, profile: UserProfile): 
     return true;
   }
 
-  let success = false;
+  let dbSuccess = false;
 
+  const payload = {
+    email: cleanEmail,
+    nama_sekolah: profile.namaSekolah,
+    nama_kepala_sekolah: profile.namaKepalaSekolah,
+    nip_kepala_sekolah: profile.nipKepalaSekolah,
+    nama_penyusun: profile.namaPenyusun,
+    nip_penyusun: profile.nipPenyusun,
+    updated_at: new Date().toISOString()
+  };
+
+  // 1. Try upserting to user_profiles table via client
   try {
-    const payload = {
-      email: cleanEmail,
-      nama_sekolah: profile.namaSekolah,
-      nama_kepala_sekolah: profile.namaKepalaSekolah,
-      nip_kepala_sekolah: profile.nipKepalaSekolah,
-      nama_penyusun: profile.namaPenyusun,
-      nip_penyusun: profile.nipPenyusun,
-      updated_at: new Date().toISOString()
-    };
-
-    // 1. Try upserting to user_profiles table
     const { error: profileError } = await supabase
       .from('user_profiles')
       .upsert(payload, { onConflict: 'email' });
 
     if (!profileError) {
-      success = true;
+      dbSuccess = true;
     } else {
       // Try without updated_at
       const { error: err2 } = await supabase
@@ -120,14 +120,14 @@ export async function saveUserProfileToDb(email: string, profile: UserProfile): 
           nama_penyusun: profile.namaPenyusun,
           nip_penyusun: profile.nipPenyusun
         }, { onConflict: 'email' });
-      if (!err2) success = true;
+      if (!err2) dbSuccess = true;
     }
   } catch (e) {
     console.error("Error saving to user_profiles table:", e);
   }
 
+  // 2. Also try updating users table
   try {
-    // 2. Also try updating users table
     const userPayload = {
       email: cleanEmail,
       nama_sekolah: profile.namaSekolah,
@@ -143,18 +143,39 @@ export async function saveUserProfileToDb(email: string, profile: UserProfile): 
       .eq('email', cleanEmail);
 
     if (!userError) {
-      success = true;
+      dbSuccess = true;
     } else {
-      // If update failed (e.g. columns don't exist in users table), try upserting
       const { error: upsertErr } = await supabase
         .from('users')
         .upsert(userPayload, { onConflict: 'email' });
-      if (!upsertErr) success = true;
+      if (!upsertErr) dbSuccess = true;
     }
   } catch (e) {
     console.error("Error updating users table with profile:", e);
   }
 
-  // Return true if either succeeded or at least local saved successfully
+  // 3. Robust Direct Supabase REST API Fallback (bypasses client constraints if any)
+  try {
+    const urlEnv = (import.meta as any).env.VITE_SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
+    const keyEnv = (import.meta as any).env.VITE_SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || '';
+    if (urlEnv && keyEnv) {
+      const restRes = await fetch(`${urlEnv}/rest/v1/user_profiles?on_conflict=email`, {
+        method: 'POST',
+        headers: {
+          'apikey': keyEnv,
+          'Authorization': `Bearer ${keyEnv}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'resolution=merge-duplicates'
+        },
+        body: JSON.stringify(payload)
+      });
+      if (restRes.ok) {
+        dbSuccess = true;
+      }
+    }
+  } catch (restErr) {
+    console.error("REST API fallback error:", restErr);
+  }
+
   return true;
 }
