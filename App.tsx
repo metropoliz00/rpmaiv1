@@ -12,6 +12,7 @@ import { initialFormData, RPMData, RubrikData, LKMData, getModelSyntaxes, getDef
 import { generateContent, cleanJSON, buildBulkPrompts, buildPrompt, testApiKey, formatNumberedText } from './services/geminiService';
 import { ActivationScreen } from './components/ActivationScreen';
 import { checkIsActivated, clearCredentials, getSavedCredentials, saveCredentials, checkUserOnDb, updateUserGeminiKeyOnDb, getRegisteredUsers } from './services/licenseService';
+import { getUserProfileFromDb, saveUserProfileToDb } from './services/profileService';
 
 export default function App() {
   const [isActivated, setIsActivated] = useState(checkIsActivated());
@@ -94,7 +95,7 @@ export default function App() {
     }
   };
 
-  // Load Gemini Key and showAttachments from DB on activation with polling
+  // Load Gemini Key, showAttachments, and Profile from DB on activation with polling
   React.useEffect(() => {
     const loadUserInfo = async () => {
       if (isActivated) {
@@ -115,6 +116,19 @@ export default function App() {
                 clearCredentials();
                 setIsActivated(false);
               }
+            }
+
+            const profile = await getUserProfileFromDb(creds.email);
+            if (profile) {
+              setProfileData(profile);
+              setFormData(prev => ({
+                ...prev,
+                namaSekolah: profile.namaSekolah || prev.namaSekolah,
+                namaKepalaSekolah: profile.namaKepalaSekolah || prev.namaKepalaSekolah,
+                nipKepalaSekolah: profile.nipKepalaSekolah || prev.nipKepalaSekolah,
+                namaPenyusun: profile.namaPenyusun || prev.namaPenyusun,
+                nipPenyusun: profile.nipPenyusun || prev.nipPenyusun,
+              }));
             }
           } catch (e) {
             console.error("Gagal memuat info user dari cloud:", e);
@@ -177,9 +191,13 @@ export default function App() {
     }
   });
 
-  const handleSaveProfile = (e: React.FormEvent) => {
+  const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     localStorage.setItem('user_profile_data', JSON.stringify(profileData));
+    const creds = getSavedCredentials();
+    if (creds && creds.email) {
+      await saveUserProfileToDb(creds.email, profileData);
+    }
     setFormData(prev => ({
       ...prev,
       namaSekolah: profileData.namaSekolah,
@@ -189,7 +207,7 @@ export default function App() {
       nipPenyusun: profileData.nipPenyusun
     }));
     setShowProfileModal(false);
-    setToastMessage("Profil pengguna berhasil disimpan dan diterapkan otomatis ke form utama!");
+    setToastMessage("Profil pengguna berhasil disimpan ke database dan diterapkan otomatis ke form utama!");
     setTimeout(() => setToastMessage(null), 3000);
   };
 
