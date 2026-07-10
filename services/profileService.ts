@@ -74,12 +74,48 @@ export async function saveUserProfileToDb(email: string, profile: UserProfile): 
 
   let success = false;
 
-  // 1. Try REST API direct upsert to user_profiles (most reliable for RLS/anonymous/service key environments)
+  // 1. Explicit Check & Update / Insert for user_profiles
+  try {
+    const { data: existing, error: checkError } = await supabase
+      .from('user_profiles')
+      .select('id')
+      .eq('email', cleanEmail)
+      .maybeSingle();
+
+    if (!checkError) {
+      if (existing && existing.id) {
+        // Update existing record
+        const { error: updateError } = await supabase
+          .from('user_profiles')
+          .update(payload)
+          .eq('id', existing.id);
+        if (!updateError) {
+          success = true;
+        } else {
+          console.warn("Update user_profiles error:", updateError);
+        }
+      } else {
+        // Insert new record
+        const { error: insertError } = await supabase
+          .from('user_profiles')
+          .insert(payload);
+        if (!insertError) {
+          success = true;
+        } else {
+          console.warn("Insert user_profiles error:", insertError);
+        }
+      }
+    }
+  } catch (e) {
+    console.error("Error saving user profile to user_profiles table:", e);
+  }
+
+  // 2. Also try REST API direct fallback to user_profiles
   try {
     const urlEnv = (import.meta as any).env.VITE_SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
     const keyEnv = (import.meta as any).env.VITE_SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || '';
     if (urlEnv && keyEnv) {
-      const restRes = await fetch(`${urlEnv}/rest/v1/user_profiles?on_conflict=email`, {
+      const restRes = await fetch(`${urlEnv}/rest/v1/user_profiles`, {
         method: 'POST',
         headers: {
           'apikey': keyEnv,
@@ -91,43 +127,13 @@ export async function saveUserProfileToDb(email: string, profile: UserProfile): 
       });
       if (restRes.ok) {
         success = true;
-      } else {
-        const errText = await restRes.text();
-        console.warn("REST API user_profiles upsert warning:", errText);
       }
     }
   } catch (restErr) {
     console.error("REST API fallback error:", restErr);
   }
 
-  // 2. Try Supabase Client upsert to user_profiles
-  try {
-    const { error: profileError } = await supabase
-      .from('user_profiles')
-      .upsert(payload, { onConflict: 'email' });
-
-    if (!profileError) {
-      success = true;
-    } else {
-      console.warn("Client user_profiles upsert error:", profileError);
-      // Try without updated_at
-      const { error: err2 } = await supabase
-        .from('user_profiles')
-        .upsert({
-          email: cleanEmail,
-          nama_sekolah: profile.namaSekolah,
-          nama_kepala_sekolah: profile.namaKepalaSekolah,
-          nip_kepala_sekolah: profile.nipKepalaSekolah,
-          nama_penyusun: profile.namaPenyusun,
-          nip_penyusun: profile.nipPenyusun
-        }, { onConflict: 'email' });
-      if (!err2) success = true;
-    }
-  } catch (e) {
-    console.error("Error saving to user_profiles table via client:", e);
-  }
-
-  // 3. Also try updating users table
+  // 3. Also update users table if exists
   try {
     const userPayload = {
       email: cleanEmail,
@@ -145,11 +151,6 @@ export async function saveUserProfileToDb(email: string, profile: UserProfile): 
 
     if (!userError) {
       success = true;
-    } else {
-      const { error: upsertErr } = await supabase
-        .from('users')
-        .upsert(userPayload, { onConflict: 'email' });
-      if (!upsertErr) success = true;
     }
   } catch (e) {
     console.error("Error updating users table with profile:", e);
