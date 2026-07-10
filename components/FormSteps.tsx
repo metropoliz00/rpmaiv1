@@ -169,19 +169,28 @@ export const Step2Konten: React.FC<Step2Props> = ({ formData, setFormData, uploa
         </InputGroup>
         <InputGroup label="Materi Pokok">
             {dbMateri && dbMateri.length > 0 ? (
-                <select className="w-full p-3 border border-gray-300 rounded-lg bg-white" value={formData.materiPokok} onChange={(e) => setFormData({...formData, materiPokok: e.target.value})}>
-                    <option value="">Pilih Materi Pokok (Database)</option>
-                    {dbMateri.map(item => (
-                        <option key={item} value={item}>{item}</option>
-                    ))}
-                </select>
+                <div className="space-y-2">
+                    <select className="w-full p-3 border border-gray-300 rounded-lg bg-white" value={formData.materiPokok} onChange={(e) => setFormData({...formData, materiPokok: e.target.value})}>
+                        <option value="">Pilih dari Database atau ketik sendiri di bawah</option>
+                        {dbMateri.map(item => (
+                            <option key={item} value={item}>{item}</option>
+                        ))}
+                    </select>
+                    <input 
+                        type="text" 
+                        className="w-full p-2.5 border border-gray-300 rounded-lg text-sm" 
+                        value={formData.materiPokok} 
+                        onChange={(e) => setFormData({...formData, materiPokok: e.target.value})} 
+                        placeholder="Atau ketik materi pokok secara manual di sini..." 
+                    />
+                </div>
             ) : dbMateri !== null && dbMateri.length === 0 ? (
                 <input 
                     type="text" 
-                    className="w-full p-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-400 cursor-not-allowed" 
-                    value="" 
-                    disabled 
-                    placeholder="(Kosong - Belum ada data di database)" 
+                    className="w-full p-3 border border-gray-300 rounded-lg" 
+                    value={formData.materiPokok} 
+                    onChange={(e) => setFormData({...formData, materiPokok: e.target.value})} 
+                    placeholder="Masukkan materi pokok secara manual" 
                 />
             ) : (
                 <input 
