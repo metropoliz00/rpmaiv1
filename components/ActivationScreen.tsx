@@ -3,7 +3,7 @@ import {
   Bot, Key, Mail, Lock, Sparkles, Copy, Check, 
   ExternalLink, Eye, EyeOff, ShieldCheck, HelpCircle,
   Trash2, UserPlus, CheckCircle2, AlertTriangle, ToggleLeft, ToggleRight, Users, ChevronLeft, X,
-  MessageCircle, Save
+  MessageCircle, Save, BookOpen, Download, Upload, Plus
 } from 'lucide-react';
 import { Button } from './UI';
 import { 
@@ -26,6 +26,7 @@ import {
 } from '../services/licenseService';
 import { getAdminPassword, updateAdminPassword } from '../services/adminService';
 import { testApiKey } from '../services/geminiService';
+import { fetchAllCurriculumItems, addCurriculumItem, deleteCurriculumItem, bulkInsertCurriculum } from '../services/curriculumService';
 
 interface ActivationScreenProps {
   onActivated: () => void;
@@ -56,6 +57,11 @@ export const ActivationScreen: React.FC<ActivationScreenProps> = ({ onActivated 
   const [newAdminPassword, setNewAdminPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
+  // Curriculum Management States
+  const [curriculumItems, setCurriculumItems] = useState<{ kelas: any[], mataPelajaran: any[], materi: any[] }>({ kelas: [], mataPelajaran: [], materi: [] });
+  const [manualCategory, setManualCategory] = useState<'db_kelas' | 'db_mata_pelajaran' | 'db_materi'>('db_kelas');
+  const [manualName, setManualName] = useState('');
+
   // Add User Form States
   const [newEmail, setNewEmail] = useState('');
   const [newGeminiKey, setNewGeminiKey] = useState('');
@@ -73,10 +79,20 @@ export const ActivationScreen: React.FC<ActivationScreenProps> = ({ onActivated 
     onConfirm: () => void;
   } | null>(null);
 
+  const loadCurriculumData = async () => {
+    try {
+      const data = await fetchAllCurriculumItems();
+      setCurriculumItems(data);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   // Load registered users and admin password on mount
   useEffect(() => {
     if (viewMode === 'admin') {
       getRegisteredUsersFromDb().then(setRegisteredUsers).catch(console.error);
+      loadCurriculumData();
     } else {
       const list = getRegisteredUsers();
       setRegisteredUsers(list);
@@ -84,6 +100,94 @@ export const ActivationScreen: React.FC<ActivationScreenProps> = ({ onActivated 
     
     getAdminPassword().then(setDbAdminPassword);
   }, [viewMode]);
+
+  const handleManualAddCurriculum = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!manualName.trim()) return;
+    const success = await addCurriculumItem(manualCategory, manualName.trim());
+    if (success) {
+      setManualName('');
+      setSuccessToast("Item kurikulum berhasil ditambahkan ke database!");
+      setTimeout(() => setSuccessToast(null), 2500);
+      loadCurriculumData();
+    } else {
+      setAlertModalMessage("Gagal menambahkan item ke database.");
+    }
+  };
+
+  const handleDeleteCurriculum = async (table: 'db_kelas' | 'db_mata_pelajaran' | 'db_materi', id: string) => {
+    const success = await deleteCurriculumItem(table, id);
+    if (success) {
+      setSuccessToast("Item berhasil dihapus dari database.");
+      setTimeout(() => setSuccessToast(null), 2500);
+      loadCurriculumData();
+    } else {
+      setAlertModalMessage("Gagal menghapus item.");
+    }
+  };
+
+  const handleDownloadTemplate = () => {
+    const csvContent = "kategori,nama\nkelas,I\nkelas,II\nkelas,III\nmata_pelajaran,Matematika\nmata_pelajaran,Bahasa Indonesia\nmateri,Bilangan Cacat sampai 100\nmateri,Pancasila dalam Kehidupan";
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'template_kurikulum_rpm.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleUploadCurriculumFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const text = event.target?.result as string;
+        if (!text) return;
+
+        const lines = text.split(/\r?\n/);
+        const itemsToInsert: { table: 'db_kelas' | 'db_mata_pelajaran' | 'db_materi', name: string }[] = [];
+
+        for (let i = 1; i < lines.length; i++) {
+          const line = lines[i].trim();
+          if (!line) continue;
+          const parts = line.split(',');
+          if (parts.length >= 2) {
+            const cat = parts[0].trim().toLowerCase();
+            const name = parts.slice(1).join(',').trim().replace(/^["']|["']$/g, '');
+
+            let tableName: 'db_kelas' | 'db_mata_pelajaran' | 'db_materi' | null = null;
+            if (cat.includes('kelas')) tableName = 'db_kelas';
+            else if (cat.includes('mapel') || cat.includes('mata_pelajaran') || cat.includes('pelajaran')) tableName = 'db_mata_pelajaran';
+            else if (cat.includes('materi')) tableName = 'db_materi';
+
+            if (tableName && name) {
+              itemsToInsert.push({ table: tableName, name });
+            }
+          }
+        }
+
+        if (itemsToInsert.length === 0) {
+          setAlertModalMessage("Format file tidak valid atau kosong. Pastikan menggunakan format CSV template yang benar.");
+          return;
+        }
+
+        const count = await bulkInsertCurriculum(itemsToInsert);
+        setSuccessToast(`Berhasil mengimpor ${count} data ke database!`);
+        setTimeout(() => setSuccessToast(null), 3000);
+        loadCurriculumData();
+      } catch (err: any) {
+        console.error(err);
+        setAlertModalMessage("Gagal membaca file: " + err.message);
+      } finally {
+        e.target.value = '';
+      }
+    };
+    reader.readAsText(file);
+  };
 
   // Detect registered user
   useEffect(() => {
@@ -584,6 +688,145 @@ export const ActivationScreen: React.FC<ActivationScreenProps> = ({ onActivated 
                       </button>
                     </div>
                   </form>
+                </div>
+
+                {/* Curriculum Management Section */}
+                <div className="bg-blue-50/50 border border-blue-100 rounded-xl p-4 shadow-sm space-y-4">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                    <h3 className="text-xs font-bold text-blue-700 uppercase tracking-wider flex items-center gap-1.5">
+                      <BookOpen size={14} /> Kelola Database Kurikulum (Kelas, Mapel, Materi)
+                    </h3>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <button
+                        onClick={handleDownloadTemplate}
+                        className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-1.5 rounded-lg text-xs transition-colors flex items-center gap-1 shadow-sm"
+                      >
+                        <Download size={12} /> Download Template CSV
+                      </button>
+                      <label className="bg-blue-600 hover:bg-blue-500 text-white font-bold px-3 py-1.5 rounded-lg text-xs transition-colors flex items-center gap-1 cursor-pointer shadow-sm">
+                        <Upload size={12} /> Upload Excel/CSV
+                        <input 
+                          type="file" 
+                          accept=".csv,.txt" 
+                          onChange={handleUploadCurriculumFile} 
+                          className="hidden" 
+                        />
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Manual Add Form */}
+                  <form onSubmit={handleManualAddCurriculum} className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-2 border-t border-blue-100">
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-600 mb-1">Kategori</label>
+                      <select 
+                        value={manualCategory}
+                        onChange={(e) => setManualCategory(e.target.value as any)}
+                        className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-blue-500 shadow-sm"
+                      >
+                        <option value="db_kelas">Kelas</option>
+                        <option value="db_mata_pelajaran">Mata Pelajaran</option>
+                        <option value="db_materi">Materi Pokok</option>
+                      </select>
+                    </div>
+                    <div className="sm:col-span-2">
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-600 mb-1">Nama / Item Baru</label>
+                      <div className="flex gap-2">
+                        <input 
+                          type="text"
+                          value={manualName}
+                          onChange={(e) => setManualName(e.target.value)}
+                          placeholder="Contoh: VII atau Matematika atau Pecahan"
+                          className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-500 shadow-sm"
+                          required
+                        />
+                        <button
+                          type="submit"
+                          className="bg-blue-600 hover:bg-blue-500 text-white font-bold px-4 py-2 rounded-lg text-xs transition-colors flex items-center gap-1 shrink-0 shadow-sm"
+                        >
+                          <Plus size={14} /> Tambah
+                        </button>
+                      </div>
+                    </div>
+                  </form>
+
+                  {/* Tables list summary */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2">
+                    {/* Kelas */}
+                    <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-sm space-y-2">
+                      <div className="flex justify-between items-center border-b border-slate-100 pb-1.5">
+                        <span className="font-bold text-xs text-slate-800">Kelas ({curriculumItems.kelas.length})</span>
+                      </div>
+                      <div className="max-h-40 overflow-y-auto space-y-1 pr-1">
+                        {curriculumItems.kelas.length === 0 ? (
+                          <p className="text-[11px] text-slate-400 italic text-center py-2">Belum ada data</p>
+                        ) : (
+                          curriculumItems.kelas.map((item: any) => (
+                            <div key={item.id} className="flex justify-between items-center bg-slate-50 hover:bg-slate-100 px-2 py-1 rounded text-xs">
+                              <span className="font-medium text-slate-700 truncate">{item.name}</span>
+                              <button 
+                                onClick={() => handleDeleteCurriculum('db_kelas', item.id)}
+                                className="text-red-500 hover:text-red-700 p-0.5"
+                                title="Hapus"
+                              >
+                                <Trash2 size={12} />
+                              </button>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Mata Pelajaran */}
+                    <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-sm space-y-2">
+                      <div className="flex justify-between items-center border-b border-slate-100 pb-1.5">
+                        <span className="font-bold text-xs text-slate-800">Mata Pelajaran ({curriculumItems.mataPelajaran.length})</span>
+                      </div>
+                      <div className="max-h-40 overflow-y-auto space-y-1 pr-1">
+                        {curriculumItems.mataPelajaran.length === 0 ? (
+                          <p className="text-[11px] text-slate-400 italic text-center py-2">Belum ada data</p>
+                        ) : (
+                          curriculumItems.mataPelajaran.map((item: any) => (
+                            <div key={item.id} className="flex justify-between items-center bg-slate-50 hover:bg-slate-100 px-2 py-1 rounded text-xs">
+                              <span className="font-medium text-slate-700 truncate">{item.name}</span>
+                              <button 
+                                onClick={() => handleDeleteCurriculum('db_mata_pelajaran', item.id)}
+                                className="text-red-500 hover:text-red-700 p-0.5"
+                                title="Hapus"
+                              >
+                                <Trash2 size={12} />
+                              </button>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Materi Pokok */}
+                    <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-sm space-y-2">
+                      <div className="flex justify-between items-center border-b border-slate-100 pb-1.5">
+                        <span className="font-bold text-xs text-slate-800">Materi Pokok ({curriculumItems.materi.length})</span>
+                      </div>
+                      <div className="max-h-40 overflow-y-auto space-y-1 pr-1">
+                        {curriculumItems.materi.length === 0 ? (
+                          <p className="text-[11px] text-slate-400 italic text-center py-2">Belum ada data</p>
+                        ) : (
+                          curriculumItems.materi.map((item: any) => (
+                            <div key={item.id} className="flex justify-between items-center bg-slate-50 hover:bg-slate-100 px-2 py-1 rounded text-xs">
+                              <span className="font-medium text-slate-700 truncate">{item.name}</span>
+                              <button 
+                                onClick={() => handleDeleteCurriculum('db_materi', item.id)}
+                                className="text-red-500 hover:text-red-700 p-0.5"
+                                title="Hapus"
+                              >
+                                <Trash2 size={12} />
+                              </button>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Registered Users List */}

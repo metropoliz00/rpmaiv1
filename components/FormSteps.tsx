@@ -1,8 +1,9 @@
 import React from 'react';
 import { User, BookOpen, Layout, Upload, FilePlus, List, Loader2, Sparkles } from 'lucide-react';
 import { InputGroup, SectionTitle } from './UI';
-import { RPMData, dplOptions, getDefaultDurationsForJP, adjustDurations, getMinutesFromAlokasi, getModelSyntaxes } from '../types';
+import { RPMData, dplOptions, getDefaultDurationsForJP, adjustDurations, getMinutesFromAlokasi, getModelSyntaxes, getDefaultKegiatanAwal, getDefaultKegiatanPenutup } from '../types';
 import { getCPBySubjectAndClass } from '../services/capaianPembelajaranService';
+import { fetchDbKelas, fetchDbMataPelajaran, fetchDbMateri } from '../services/curriculumService';
 
 interface StepProps {
   formData: RPMData;
@@ -93,6 +94,24 @@ const kemitraanPresets = [
 ];
 
 export const Step2Konten: React.FC<Step2Props> = ({ formData, setFormData, uploadedFile, setUploadedFile, additionalContext, setAdditionalContext, generateField, loaders }) => {
+  const [dbKelas, setDbKelas] = React.useState<string[] | null>(null);
+  const [dbMataPelajaran, setDbMataPelajaran] = React.useState<string[] | null>(null);
+  const [dbMateri, setDbMateri] = React.useState<string[] | null>(null);
+
+  React.useEffect(() => {
+    async function loadDb() {
+      const [k, mp, mat] = await Promise.all([
+        fetchDbKelas(),
+        fetchDbMataPelajaran(),
+        fetchDbMateri()
+      ]);
+      setDbKelas(k);
+      setDbMataPelajaran(mp);
+      setDbMateri(mat);
+    }
+    loadDb();
+  }, []);
+
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -117,6 +136,9 @@ export const Step2Konten: React.FC<Step2Props> = ({ formData, setFormData, uploa
     }
   }, [formData.mataPelajaran, formData.kelas, setFormData]);
 
+  const fallbackMataPelajaran = ["Pendidikan Agama Islam", "Pendidikan Pancasila", "Bahasa Indonesia", "Matematika", "IPAS", "PJOK", "Seni", "Bahasa Inggris", "Bahasa Jawa", "KKA"];
+  const fallbackKelas = ["I", "II", "III", "IV", "V", "VI"];
+
   return (
     <div className="animate-fade-in-up">
       <SectionTitle title="Detail Pembelajaran & Konteks" icon={BookOpen} />
@@ -125,31 +147,72 @@ export const Step2Konten: React.FC<Step2Props> = ({ formData, setFormData, uploa
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <InputGroup label="Mata Pelajaran">
-            <select className="w-full p-3 border border-gray-300 rounded-lg bg-white" value={formData.mataPelajaran} onChange={(e) => setFormData({...formData, mataPelajaran: e.target.value})}>
-                <option value="">Pilih Mata Pelajaran</option>
-                <option value="Pendidikan Agama Islam">Pendidikan Agama Islam</option>
-                <option value="Pendidikan Pancasila">Pendidikan Pancasila</option>
-                <option value="Bahasa Indonesia">Bahasa Indonesia</option>
-                <option value="Matematika">Matematika</option>
-                <option value="IPAS">IPAS</option>
-                <option value="PJOK">PJOK</option>
-                <option value="Seni">Seni</option>
-                <option value="Bahasa Inggris">Bahasa Inggris</option>
-                <option value="Bahasa Jawa">Bahasa Jawa</option>
-                <option value="KKA">KKA</option>
-            </select>
+            {dbMataPelajaran && dbMataPelajaran.length > 0 ? (
+                <select className="w-full p-3 border border-gray-300 rounded-lg bg-white" value={formData.mataPelajaran} onChange={(e) => setFormData({...formData, mataPelajaran: e.target.value})}>
+                    <option value="">Pilih Mata Pelajaran (Database)</option>
+                    {dbMataPelajaran.map(item => (
+                        <option key={item} value={item}>{item}</option>
+                    ))}
+                </select>
+            ) : dbMataPelajaran !== null && dbMataPelajaran.length === 0 ? (
+                <select className="w-full p-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-400" disabled>
+                    <option value="">(Kosong - Belum ada data di database)</option>
+                </select>
+            ) : (
+                <select className="w-full p-3 border border-gray-300 rounded-lg bg-white" value={formData.mataPelajaran} onChange={(e) => setFormData({...formData, mataPelajaran: e.target.value})}>
+                    <option value="">Pilih Mata Pelajaran</option>
+                    {fallbackMataPelajaran.map(item => (
+                        <option key={item} value={item}>{item}</option>
+                    ))}
+                </select>
+            )}
         </InputGroup>
-        <InputGroup label="Materi Pokok"><input type="text" className="w-full p-3 border border-gray-300 rounded-lg" value={formData.materiPokok} onChange={(e) => setFormData({...formData, materiPokok: e.target.value})} placeholder="Masukkan materi pokok" /></InputGroup>
+        <InputGroup label="Materi Pokok">
+            {dbMateri && dbMateri.length > 0 ? (
+                <select className="w-full p-3 border border-gray-300 rounded-lg bg-white" value={formData.materiPokok} onChange={(e) => setFormData({...formData, materiPokok: e.target.value})}>
+                    <option value="">Pilih Materi Pokok (Database)</option>
+                    {dbMateri.map(item => (
+                        <option key={item} value={item}>{item}</option>
+                    ))}
+                </select>
+            ) : dbMateri !== null && dbMateri.length === 0 ? (
+                <input 
+                    type="text" 
+                    className="w-full p-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-400 cursor-not-allowed" 
+                    value="" 
+                    disabled 
+                    placeholder="(Kosong - Belum ada data di database)" 
+                />
+            ) : (
+                <input 
+                    type="text" 
+                    className="w-full p-3 border border-gray-300 rounded-lg" 
+                    value={formData.materiPokok} 
+                    onChange={(e) => setFormData({...formData, materiPokok: e.target.value})} 
+                    placeholder="Masukkan materi pokok" 
+                />
+            )}
+        </InputGroup>
         <InputGroup label="Kelas">
-             <select className="w-full p-3 border border-gray-300 rounded-lg bg-white" value={formData.kelas} onChange={(e) => setFormData({...formData, kelas: e.target.value})}>
-                <option value="">Pilih Kelas</option>
-                <option value="I">I</option>
-                <option value="II">II</option>
-                <option value="III">III</option>
-                <option value="IV">IV</option>
-                <option value="V">V</option>
-                <option value="VI">VI</option>
-            </select>
+             {dbKelas && dbKelas.length > 0 ? (
+                <select className="w-full p-3 border border-gray-300 rounded-lg bg-white" value={formData.kelas} onChange={(e) => setFormData({...formData, kelas: e.target.value})}>
+                    <option value="">Pilih Kelas (Database)</option>
+                    {dbKelas.map(item => (
+                        <option key={item} value={item}>{item}</option>
+                    ))}
+                </select>
+            ) : dbKelas !== null && dbKelas.length === 0 ? (
+                <select className="w-full p-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-400" disabled>
+                    <option value="">(Kosong - Belum ada data di database)</option>
+                </select>
+            ) : (
+                <select className="w-full p-3 border border-gray-300 rounded-lg bg-white" value={formData.kelas} onChange={(e) => setFormData({...formData, kelas: e.target.value})}>
+                    <option value="">Pilih Kelas</option>
+                    {fallbackKelas.map(item => (
+                        <option key={item} value={item}>{item}</option>
+                    ))}
+                </select>
+            )}
         </InputGroup>
         <InputGroup label="Alokasi Waktu">
             <select className="w-full p-3 border border-gray-300 rounded-lg bg-white" value={formData.alokasiWaktu} onChange={(e) => {
@@ -564,7 +627,11 @@ export const Step3Detail: React.FC<Step3Props> = ({ formData, setFormData, gener
                             </div>
                         )}
                     </div>
-                    <textarea className="w-full p-3 border border-gray-300 rounded-lg h-40 font-mono text-sm" value={formData.kegiatanAwal} onChange={(e) => setFormData({...formData, kegiatanAwal: e.target.value})} placeholder="Masukkan kegiatan awal" />
+                    <textarea 
+                        className="w-full p-3 border border-gray-300 rounded-lg h-40 font-mono text-sm bg-gray-50 text-gray-700" 
+                        value={getDefaultKegiatanAwal(formData.materiPokok)} 
+                        readOnly 
+                    />
                 </div>
                 
                 {/* Kegiatan Inti */}
@@ -695,7 +762,11 @@ export const Step3Detail: React.FC<Step3Props> = ({ formData, setFormData, gener
                             </div>
                         )}
                     </div>
-                    <textarea className="w-full p-3 border border-gray-300 rounded-lg h-40 font-mono text-sm" value={formData.kegiatanPenutup} onChange={(e) => setFormData({...formData, kegiatanPenutup: e.target.value})} placeholder="Masukkan kegiatan penutup" />
+                    <textarea 
+                        className="w-full p-3 border border-gray-300 rounded-lg h-40 font-mono text-sm bg-gray-50 text-gray-700" 
+                        value={getDefaultKegiatanPenutup(formData.materiPokok)} 
+                        readOnly 
+                    />
                 </div>
             </div>
         </div>

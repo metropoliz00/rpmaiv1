@@ -359,9 +359,10 @@ export const checkUserOnDb = async (email: string): Promise<RegisteredUser | nul
       return mapToRegisteredUser(data);
     }
   } catch (e) {
-    console.error("Error fetching user from DB:", e);
+    // Fallback to local cache instead of failing
+    const cached = getRegisteredUsers();
+    return cached.find(u => u.email === cleanEmail) || null;
   }
-  return null;
 };
 
 /**

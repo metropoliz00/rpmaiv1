@@ -230,6 +230,24 @@ export const initialFormData: RPMData = {
   kegiatanPenutupDurasi: 0
 };
 
+export const getDefaultKegiatanAwal = (materi: string): string => {
+  const m = materi || '[sesuaikan materi]';
+  return `1. Guru membuka pembelajaran dengan salam, mengajak murid berdoa, dan memeriksa kehadiran serta kesiapan belajar murid.
+2. Guru menciptakan suasana belajar yang positif dengan mengajak murid menyanyikan lagu kebangsaan Indonesia Raya, ice breaking, pertanyaan sederhana, atau aktivitas pemantik sesuai dengan materi ${m}.
+3. Guru melakukan apersepsi dengan menghubungkan materi yang akan dipelajari dengan pengalaman, pengetahuan awal, atau fenomena yang dekat dengan kehidupan murid.
+4. Guru menyampaikan tujuan pembelajaran, manfaat pembelajaran, serta kriteria keberhasilan yang akan dicapai murid.
+5. Guru memberikan motivasi belajar dan menjelaskan aktivitas pembelajaran yang akan dilaksanakan sebelum memasuki kegiatan inti.`;
+};
+
+export const getDefaultKegiatanPenutup = (materi: string): string => {
+  const m = materi || '[sesuaikan materi]';
+  return `1. Guru memfasilitasi murid untuk melakukan refleksi dan menyampaikan kesimpulan mengenai materi ${m} yang telah dipelajari.
+2. Guru memberikan umpan balik terhadap proses dan hasil belajar murid serta mengonfirmasi tingkat pemahaman murid.
+3. Guru melaksanakan penilaian formatif sebagai bahan evaluasi pembelajaran.
+4. Guru menyampaikan tindak lanjut pembelajaran, penguatan karakter, serta informasi mengenai materi atau kegiatan pada pertemuan berikutnya.
+5. Guru memberikan apresiasi atas partisipasi murid, mengajak berdoa bersama, dan menutup pembelajaran dengan salam.`;
+};
+
 export const dplOptions = [
   { label: "Keimanan dan Ketakwaan terhadap Tuhan YME", color: "bg-green-100 text-green-800" },
   { label: "Kewargaan", color: "bg-blue-100 text-blue-800" },

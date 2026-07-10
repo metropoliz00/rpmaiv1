@@ -8,7 +8,7 @@ import {
 import { Step1Identitas, Step2Konten, Step3Detail } from './components/FormSteps';
 import { RPMDocument } from './components/Preview';
 import { Button } from './components/UI';
-import { initialFormData, RPMData, RubrikData, LKMData, getModelSyntaxes } from './types';
+import { initialFormData, RPMData, RubrikData, LKMData, getModelSyntaxes, getDefaultKegiatanAwal, getDefaultKegiatanPenutup } from './types';
 import { generateContent, cleanJSON, buildBulkPrompts, buildPrompt, testApiKey, formatNumberedText } from './services/geminiService';
 import { ActivationScreen } from './components/ActivationScreen';
 import { checkIsActivated, clearCredentials, getSavedCredentials, saveCredentials, checkUserOnDb, updateUserGeminiKeyOnDb, getRegisteredUsers } from './services/licenseService';
@@ -184,6 +184,15 @@ export default function App() {
     localStorage.setItem('rpm_form_data', JSON.stringify(formData));
   }, [formData]);
 
+  // Keep kegiatanAwal and kegiatanPenutup synced with materiPokok from coding template
+  React.useEffect(() => {
+    setFormData(prev => ({
+      ...prev,
+      kegiatanAwal: getDefaultKegiatanAwal(prev.materiPokok),
+      kegiatanPenutup: getDefaultKegiatanPenutup(prev.materiPokok)
+    }));
+  }, [formData.materiPokok]);
+
   const handleClearData = () => {
     setConfirmModalConfig({
       title: "Konfirmasi Kosongkan Form",
@@ -291,11 +300,16 @@ export default function App() {
                   intiMerefleksi: imer
               }));
           } else {
-              const result = await generateContent(prompt, userGeminiKey);
-              const formatted = ['tujuanPembelajaran', 'kegiatanAwal', 'kegiatanPenutup'].includes(targetField)
-                  ? formatNumberedText(result.trim())
-                  : result.trim();
-              setFormData(prev => ({ ...prev, [targetField]: formatted }));
+              if (targetField === 'kegiatanAwal' || targetField === 'kegiatanPenutup') {
+                  const formatted = targetField === 'kegiatanAwal' ? getDefaultKegiatanAwal(formData.materiPokok) : getDefaultKegiatanPenutup(formData.materiPokok);
+                  setFormData(prev => ({ ...prev, [targetField]: formatted }));
+              } else {
+                  const result = await generateContent(prompt, userGeminiKey);
+                  const formatted = ['tujuanPembelajaran'].includes(targetField)
+                      ? formatNumberedText(result.trim())
+                      : result.trim();
+                  setFormData(prev => ({ ...prev, [targetField]: formatted }));
+              }
           }
       } catch (e: any) {
           console.error(e);
@@ -337,12 +351,12 @@ export default function App() {
               setFormData(prev => ({
                   ...prev,
                   tujuanPembelajaran: formatNumberedText(json.tujuanPembelajaran || prev.tujuanPembelajaran),
-                  kegiatanAwal: formatNumberedText(json.kegiatanAwal || prev.kegiatanAwal),
+                  kegiatanAwal: getDefaultKegiatanAwal(prev.materiPokok),
                   sintakValues: newSintakValues,
                   intiMemahami: formatNumberedText(json.kegiatanInti?.memahami || json.kegiatanInti?.sintak1 || prev.intiMemahami),
                   intiMengaplikasikan: formatNumberedText(json.kegiatanInti?.mengaplikasikan || json.kegiatanInti?.sintak2 || prev.intiMengaplikasikan),
                   intiMerefleksi: formatNumberedText(json.kegiatanInti?.merefleksi || json.kegiatanInti?.sintak3 || prev.intiMerefleksi),
-                  kegiatanPenutup: formatNumberedText(json.kegiatanPenutup || prev.kegiatanPenutup)
+                  kegiatanPenutup: getDefaultKegiatanPenutup(prev.materiPokok)
               }));
               setToastMessage("Berhasil generate seluruh kegiatan pembelajaran!");
               setTimeout(() => setToastMessage(null), 3000);
