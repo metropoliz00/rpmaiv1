@@ -12,7 +12,7 @@ import { initialFormData, RPMData, RubrikData, LKMData, getModelSyntaxes, getDef
 import { generateContent, cleanJSON, buildBulkPrompts, buildPrompt, testApiKey, formatNumberedText } from './services/geminiService';
 import { ActivationScreen } from './components/ActivationScreen';
 import { checkIsActivated, clearCredentials, getSavedCredentials, saveCredentials, checkUserOnDb, updateUserGeminiKeyOnDb, getRegisteredUsers } from './services/licenseService';
-import { getUserProfileFromDb, saveUserProfileToDb } from './services/profileService';
+import { getUserProfileFromDb, saveUserProfileToDb, UserProfile } from './services/profileService';
 
 export default function App() {
   const [isActivated, setIsActivated] = useState(checkIsActivated());
@@ -119,7 +119,7 @@ export default function App() {
             }
 
             const profile = await getUserProfileFromDb(creds.email);
-            if (profile) {
+            if (profile && !showProfileModal) {
               setProfileData(profile);
               setFormData(prev => ({
                 ...prev,
@@ -153,62 +153,53 @@ export default function App() {
   const [formData, setFormData] = useState<RPMData>(() => {
     try {
       const saved = localStorage.getItem('rpm_form_data');
-      const profileSaved = localStorage.getItem('user_profile_data');
-      const initial = saved ? JSON.parse(saved) : initialFormData;
-      if (profileSaved) {
-        const profile = JSON.parse(profileSaved);
-        if (!initial.namaSekolah) initial.namaSekolah = profile.namaSekolah || '';
-        if (!initial.namaKepalaSekolah) initial.namaKepalaSekolah = profile.namaKepalaSekolah || '';
-        if (!initial.nipKepalaSekolah) initial.nipKepalaSekolah = profile.nipKepalaSekolah || '';
-        if (!initial.namaPenyusun) initial.namaPenyusun = profile.namaPenyusun || '';
-        if (!initial.nipPenyusun) initial.nipPenyusun = profile.nipPenyusun || '';
-      }
-      return initial;
+      return saved ? JSON.parse(saved) : initialFormData;
     } catch (e) {
       return initialFormData;
     }
   });
 
   const [showProfileModal, setShowProfileModal] = useState(false);
-  const [profileData, setProfileData] = useState(() => {
-    try {
-      const saved = localStorage.getItem('user_profile_data');
-      return saved ? JSON.parse(saved) : {
-        namaSekolah: formData.namaSekolah || '',
-        namaKepalaSekolah: formData.namaKepalaSekolah || '',
-        nipKepalaSekolah: formData.nipKepalaSekolah || '',
-        namaPenyusun: formData.namaPenyusun || '',
-        nipPenyusun: formData.nipPenyusun || ''
-      };
-    } catch (e) {
-      return {
-        namaSekolah: '',
-        namaKepalaSekolah: '',
-        nipKepalaSekolah: '',
-        namaPenyusun: '',
-        nipPenyusun: ''
-      };
-    }
+  const [profileData, setProfileData] = useState<UserProfile>({
+    namaSekolah: '',
+    namaKepalaSekolah: '',
+    nipKepalaSekolah: '',
+    namaPenyusun: '',
+    nipPenyusun: ''
   });
+
+  const handleOpenProfileModal = async () => {
+    const creds = getSavedCredentials();
+    if (creds && creds.email) {
+      const profile = await getUserProfileFromDb(creds.email);
+      if (profile) {
+        setProfileData(profile);
+      }
+    }
+    setShowProfileModal(true);
+  };
 
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-    localStorage.setItem('user_profile_data', JSON.stringify(profileData));
     const creds = getSavedCredentials();
     if (creds && creds.email) {
-      await saveUserProfileToDb(creds.email, profileData);
+      const success = await saveUserProfileToDb(creds.email, profileData);
+      if (success) {
+        setFormData(prev => ({
+          ...prev,
+          namaSekolah: profileData.namaSekolah,
+          namaKepalaSekolah: profileData.namaKepalaSekolah,
+          nipKepalaSekolah: profileData.nipKepalaSekolah,
+          namaPenyusun: profileData.namaPenyusun,
+          nipPenyusun: profileData.nipPenyusun
+        }));
+        setShowProfileModal(false);
+        setToastMessage("Profil pengguna berhasil disimpan ke database dan diterapkan otomatis ke form utama!");
+      } else {
+        setToastMessage("Gagal menyimpan profil ke database Supabase. Periksa koneksi.");
+      }
+      setTimeout(() => setToastMessage(null), 4000);
     }
-    setFormData(prev => ({
-      ...prev,
-      namaSekolah: profileData.namaSekolah,
-      namaKepalaSekolah: profileData.namaKepalaSekolah,
-      nipKepalaSekolah: profileData.nipKepalaSekolah,
-      namaPenyusun: profileData.namaPenyusun,
-      nipPenyusun: profileData.nipPenyusun
-    }));
-    setShowProfileModal(false);
-    setToastMessage("Profil pengguna berhasil disimpan ke database dan diterapkan otomatis ke form utama!");
-    setTimeout(() => setToastMessage(null), 3000);
   };
 
   // Content states
@@ -749,7 +740,7 @@ export default function App() {
             </div>
             <div className="flex items-center gap-1 shrink-0 ml-auto sm:ml-2 md:hidden">
               <button 
-                  onClick={() => setShowProfileModal(true)} 
+                  onClick={handleOpenProfileModal} 
                   className="p-1.5 rounded-full bg-white/10 hover:bg-white/20 transition-all text-blue-100 hover:text-white"
                   title="Lengkapi Profil Pengguna"
               >
