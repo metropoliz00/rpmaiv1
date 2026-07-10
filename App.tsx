@@ -95,7 +95,7 @@ export default function App() {
     }
   };
 
-  // Load Gemini Key, showAttachments, and Profile from DB on activation with polling
+  // Load Gemini Key, showAttachments, and Profile from DB on activation
   React.useEffect(() => {
     const loadUserInfo = async () => {
       if (isActivated) {
@@ -119,7 +119,7 @@ export default function App() {
             }
 
             const profile = await getUserProfileFromDb(creds.email);
-            if (profile && !showProfileModal) {
+            if (profile) {
               setProfileData(profile);
               setFormData(prev => ({
                 ...prev,
@@ -137,7 +137,32 @@ export default function App() {
       }
     };
     loadUserInfo();
-    const interval = setInterval(loadUserInfo, 6000);
+    const interval = setInterval(async () => {
+      if (isActivated) {
+        const creds = getSavedCredentials();
+        if (creds && creds.email) {
+          try {
+            const user = await checkUserOnDb(creds.email);
+            if (user) {
+              if (user.geminiApiKey) {
+                const cloudKey = user.geminiApiKey;
+                setUserGeminiKey(cloudKey);
+                localStorage.setItem('user_gemini_api_key', cloudKey);
+              }
+              if (user.showAttachments !== undefined) {
+                setCurrentUserShowAttachments(user.showAttachments);
+              }
+              if (user.isActive === false) {
+                clearCredentials();
+                setIsActivated(false);
+              }
+            }
+          } catch (e) {
+            console.error("Gagal polling info user dari cloud:", e);
+          }
+        }
+      }
+    }, 6000);
     return () => clearInterval(interval);
   }, [isActivated]);
 
