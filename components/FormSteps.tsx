@@ -3,7 +3,7 @@ import { User, BookOpen, Layout, Upload, FilePlus, List, Loader2, Sparkles } fro
 import { InputGroup, SectionTitle } from './UI';
 import { RPMData, dplOptions, getDefaultDurationsForJP, adjustDurations, getMinutesFromAlokasi, getModelSyntaxes, getDefaultKegiatanAwal, getDefaultKegiatanPenutup } from '../types';
 import { getCPBySubjectAndClass } from '../services/capaianPembelajaranService';
-import { fetchDbKelas, fetchDbMataPelajaran, fetchDbMateri } from '../services/curriculumService';
+import { fetchDbKelas, fetchDbMataPelajaran, fetchDbMateriItems, MateriItem } from '../services/curriculumService';
 
 interface StepProps {
   formData: RPMData;
@@ -96,21 +96,35 @@ const kemitraanPresets = [
 export const Step2Konten: React.FC<Step2Props> = ({ formData, setFormData, uploadedFile, setUploadedFile, additionalContext, setAdditionalContext, generateField, loaders }) => {
   const [dbKelas, setDbKelas] = React.useState<string[] | null>(null);
   const [dbMataPelajaran, setDbMataPelajaran] = React.useState<string[] | null>(null);
-  const [dbMateri, setDbMateri] = React.useState<string[] | null>(null);
+  const [dbMateriItems, setDbMateriItems] = React.useState<MateriItem[] | null>(null);
 
   React.useEffect(() => {
     async function loadDb() {
       const [k, mp, mat] = await Promise.all([
         fetchDbKelas(),
         fetchDbMataPelajaran(),
-        fetchDbMateri()
+        fetchDbMateriItems()
       ]);
       setDbKelas(k);
       setDbMataPelajaran(mp);
-      setDbMateri(mat);
+      setDbMateriItems(mat);
     }
     loadDb();
   }, []);
+
+  const dbMateri = React.useMemo(() => {
+    if (!dbMateriItems) return null;
+    if (!formData.mataPelajaran) return dbMateriItems.map(i => i.name).filter(Boolean);
+    const matched = dbMateriItems.filter(i => 
+      !i.mata_pelajaran || 
+      i.mata_pelajaran.trim() === '' || 
+      i.mata_pelajaran.toLowerCase() === formData.mataPelajaran.toLowerCase()
+    );
+    if (matched.length > 0) {
+      return matched.map(i => i.name).filter(Boolean);
+    }
+    return dbMateriItems.map(i => i.name).filter(Boolean); // fallback
+  }, [dbMateriItems, formData.mataPelajaran]);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -149,14 +163,14 @@ export const Step2Konten: React.FC<Step2Props> = ({ formData, setFormData, uploa
         <InputGroup label="Mata Pelajaran">
             {dbMataPelajaran && dbMataPelajaran.length > 0 ? (
                 <select className="w-full p-3 border border-gray-300 rounded-lg bg-white" value={formData.mataPelajaran} onChange={(e) => setFormData({...formData, mataPelajaran: e.target.value})}>
-                    <option value="">Pilih Mata Pelajaran (Database)</option>
+                    <option value="">Pilih Mata Pelajaran</option>
                     {dbMataPelajaran.map(item => (
                         <option key={item} value={item}>{item}</option>
                     ))}
                 </select>
             ) : dbMataPelajaran !== null && dbMataPelajaran.length === 0 ? (
                 <select className="w-full p-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-400" disabled>
-                    <option value="">(Kosong - Belum ada data di database)</option>
+                    <option value="">(Kosong - Belum ada data)</option>
                 </select>
             ) : (
                 <select className="w-full p-3 border border-gray-300 rounded-lg bg-white" value={formData.mataPelajaran} onChange={(e) => setFormData({...formData, mataPelajaran: e.target.value})}>
@@ -171,7 +185,7 @@ export const Step2Konten: React.FC<Step2Props> = ({ formData, setFormData, uploa
             {dbMateri && dbMateri.length > 0 ? (
                 <div className="space-y-2">
                     <select className="w-full p-3 border border-gray-300 rounded-lg bg-white" value={formData.materiPokok} onChange={(e) => setFormData({...formData, materiPokok: e.target.value})}>
-                        <option value="">Pilih dari Database atau ketik sendiri di bawah</option>
+                        <option value="">Pilih Materi Pokok atau ketik sendiri di bawah</option>
                         {dbMateri.map(item => (
                             <option key={item} value={item}>{item}</option>
                         ))}
@@ -205,14 +219,14 @@ export const Step2Konten: React.FC<Step2Props> = ({ formData, setFormData, uploa
         <InputGroup label="Kelas">
              {dbKelas && dbKelas.length > 0 ? (
                 <select className="w-full p-3 border border-gray-300 rounded-lg bg-white" value={formData.kelas} onChange={(e) => setFormData({...formData, kelas: e.target.value})}>
-                    <option value="">Pilih Kelas (Database)</option>
+                    <option value="">Pilih Kelas</option>
                     {dbKelas.map(item => (
                         <option key={item} value={item}>{item}</option>
                     ))}
                 </select>
             ) : dbKelas !== null && dbKelas.length === 0 ? (
                 <select className="w-full p-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-400" disabled>
-                    <option value="">(Kosong - Belum ada data di database)</option>
+                    <option value="">(Kosong - Belum ada data)</option>
                 </select>
             ) : (
                 <select className="w-full p-3 border border-gray-300 rounded-lg bg-white" value={formData.kelas} onChange={(e) => setFormData({...formData, kelas: e.target.value})}>
