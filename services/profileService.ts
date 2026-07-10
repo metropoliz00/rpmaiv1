@@ -15,14 +15,21 @@ export async function getUserProfileFromDb(email: string): Promise<UserProfile |
   }
 
   try {
-    // 1. Try fetching from user_profiles table by email
-    const { data: profileData, error: profileError } = await supabase
+    // 1. Try fetching from user_profiles table by email (ordered by created_at desc)
+    const { data: profileDataList, error: profileError } = await supabase
       .from('user_profiles')
       .select('*')
       .eq('email', cleanEmail)
-      .maybeSingle();
+      .order('created_at', { ascending: false });
 
-    if (!profileError && profileData) {
+    if (!profileError && profileDataList && profileDataList.length > 0) {
+      const profileData = profileDataList[0];
+      // Clean up any extra duplicates in background
+      if (profileDataList.length > 1) {
+        const duplicateIds = profileDataList.slice(1).map(r => r.id);
+        supabase.from('user_profiles').delete().in('id', duplicateIds).then(() => {});
+      }
+
       return {
         namaSekolah: profileData.nama_sekolah || profileData.namaSekolah || '',
         namaKepalaSekolah: profileData.nama_kepala_sekolah || profileData.namaKepalaSekolah || '',
@@ -74,66 +81,50 @@ export async function saveUserProfileToDb(email: string, profile: UserProfile): 
 
   let success = false;
 
-  // 1. Explicit Check & Update / Insert for user_profiles
+  // 1. Fetch existing records for this email to prevent duplicates
   try {
-    const { data: existing, error: checkError } = await supabase
+    const { data: existingRows, error: checkError } = await supabase
       .from('user_profiles')
-      .select('id')
+      .select('id, created_at')
       .eq('email', cleanEmail)
-      .maybeSingle();
+      .order('created_at', { ascending: false });
 
-    if (!checkError) {
-      if (existing && existing.id) {
-        // Update existing record
-        const { error: updateError } = await supabase
-          .from('user_profiles')
-          .update(payload)
-          .eq('id', existing.id);
-        if (!updateError) {
-          success = true;
-        } else {
-          console.warn("Update user_profiles error:", updateError);
-        }
+    if (!checkError && existingRows && existingRows.length > 0) {
+      // Keep the first (newest) record and update it
+      const keepId = existingRows[0].id;
+      const duplicateIds = existingRows.slice(1).map(r => r.id);
+      
+      if (duplicateIds.length > 0) {
+        await supabase.from('user_profiles').delete().in('id', duplicateIds);
+      }
+
+      const { error: updateError } = await supabase
+        .from('user_profiles')
+        .update(payload)
+        .eq('id', keepId);
+
+      if (!updateError) {
+        success = true;
       } else {
-        // Insert new record
-        const { error: insertError } = await supabase
-          .from('user_profiles')
-          .insert(payload);
-        if (!insertError) {
-          success = true;
-        } else {
-          console.warn("Insert user_profiles error:", insertError);
-        }
+        console.warn("Update user_profiles error:", updateError);
+      }
+    } else {
+      // Insert new record if none exists
+      const { error: insertError } = await supabase
+        .from('user_profiles')
+        .insert(payload);
+
+      if (!insertError) {
+        success = true;
+      } else {
+        console.warn("Insert user_profiles error:", insertError);
       }
     }
   } catch (e) {
     console.error("Error saving user profile to user_profiles table:", e);
   }
 
-  // 2. Also try REST API direct fallback to user_profiles
-  try {
-    const urlEnv = (import.meta as any).env.VITE_SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
-    const keyEnv = (import.meta as any).env.VITE_SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || '';
-    if (urlEnv && keyEnv) {
-      const restRes = await fetch(`${urlEnv}/rest/v1/user_profiles`, {
-        method: 'POST',
-        headers: {
-          'apikey': keyEnv,
-          'Authorization': `Bearer ${keyEnv}`,
-          'Content-Type': 'application/json',
-          'Prefer': 'resolution=merge-duplicates'
-        },
-        body: JSON.stringify(payload)
-      });
-      if (restRes.ok) {
-        success = true;
-      }
-    }
-  } catch (restErr) {
-    console.error("REST API fallback error:", restErr);
-  }
-
-  // 3. Also update users table if exists
+  // 2. Also update users table if exists
   try {
     const userPayload = {
       email: cleanEmail,
