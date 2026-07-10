@@ -244,15 +244,49 @@ export const registerUserOnDb = async (email: string, geminiApiKey: string, isAc
     const dbRow = mapToDbRow(newUser);
     let { error } = await supabase
       .from('users')
-      .upsert(dbRow);
+      .upsert(dbRow, { onConflict: 'email' });
 
     if (error) {
-      // Fallback without show_attachments if column doesn't exist in Supabase table
-      const { email: e_val, gemini_api_key, license_key, is_active, created_at } = dbRow;
-      const { error: error2 } = await supabase
+      console.warn("Upsert with onConflict error, trying update/insert:", error);
+      const { data: existingUserRow } = await supabase
         .from('users')
-        .upsert({ email: e_val, gemini_api_key, license_key, is_active, created_at });
-      if (error2) throw error2;
+        .select('email')
+        .eq('email', cleanEmail)
+        .maybeSingle();
+
+      if (existingUserRow) {
+        const { error: updateErr } = await supabase
+          .from('users')
+          .update({
+            gemini_api_key: dbRow.gemini_api_key,
+            license_key: dbRow.license_key,
+            is_active: dbRow.is_active,
+            show_attachments: dbRow.show_attachments
+          })
+          .eq('email', cleanEmail);
+        if (updateErr) {
+          // Fallback update without show_attachments
+          await supabase
+            .from('users')
+            .update({
+              gemini_api_key: dbRow.gemini_api_key,
+              license_key: dbRow.license_key,
+              is_active: dbRow.is_active
+            })
+            .eq('email', cleanEmail);
+        }
+      } else {
+        const { error: insertErr } = await supabase
+          .from('users')
+          .insert(dbRow);
+        if (insertErr) {
+          const { email: e_val, gemini_api_key, license_key, is_active, created_at } = dbRow;
+          const { error: error2 } = await supabase
+            .from('users')
+            .insert({ email: e_val, gemini_api_key, license_key, is_active, created_at });
+          if (error2) throw error2;
+        }
+      }
     }
     
     // Sync cache
