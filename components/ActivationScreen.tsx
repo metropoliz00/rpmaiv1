@@ -136,7 +136,7 @@ export const ActivationScreen: React.FC<ActivationScreenProps> = ({ onActivated 
   };
 
   const handleDownloadTemplate = () => {
-    const csvContent = "kategori,nama\nkelas,I\nkelas,II\nkelas,III\nmata_pelajaran,Matematika\nmata_pelajaran,Bahasa Indonesia\nmateri,Bilangan Cacat sampai 100\nmateri,Pancasila dalam Kehidupan";
+    const csvContent = "kategori,kelas,mata_pelajaran,nama\nkelas,,,I\nkelas,,,II\nkelas,,,III\nmata_pelajaran,,,Matematika\nmata_pelajaran,,,Bahasa Indonesia\nmateri,I,Matematika,Bilangan Cacat sampai 100\nmateri,I,Bahasa Indonesia,Mengenal Huruf dan Suku Kata";
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -158,23 +158,42 @@ export const ActivationScreen: React.FC<ActivationScreenProps> = ({ onActivated 
         if (!text) return;
 
         const lines = text.split(/\r?\n/);
-        const itemsToInsert: { table: 'db_kelas' | 'db_mata_pelajaran' | 'db_materi', name: string }[] = [];
+        const itemsToInsert: { table: 'db_kelas' | 'db_mata_pelajaran' | 'db_materi', name: string, kelas?: string, mata_pelajaran?: string }[] = [];
 
         for (let i = 1; i < lines.length; i++) {
           const line = lines[i].trim();
           if (!line) continue;
-          const parts = line.split(',');
+          const parts = line.split(',').map(p => p.trim().replace(/^["']|["']$/g, ''));
           if (parts.length >= 2) {
-            const cat = parts[0].trim().toLowerCase();
-            const name = parts.slice(1).join(',').trim().replace(/^["']|["']$/g, '');
-
+            const cat = parts[0].toLowerCase();
             let tableName: 'db_kelas' | 'db_mata_pelajaran' | 'db_materi' | null = null;
             if (cat.includes('kelas')) tableName = 'db_kelas';
             else if (cat.includes('mapel') || cat.includes('mata_pelajaran') || cat.includes('pelajaran')) tableName = 'db_mata_pelajaran';
             else if (cat.includes('materi')) tableName = 'db_materi';
 
-            if (tableName && name) {
-              itemsToInsert.push({ table: tableName, name });
+            if (tableName) {
+              let name = '';
+              let kelas = '';
+              let mata_pelajaran = '';
+
+              if (parts.length >= 4) {
+                kelas = parts[1];
+                mata_pelajaran = parts[2];
+                name = parts[3];
+              } else if (parts.length === 3) {
+                kelas = parts[1];
+                name = parts[2];
+              } else {
+                name = parts[1];
+              }
+
+              if (tableName === 'db_materi' && !name && parts.length >= 2) {
+                name = parts[parts.length - 1];
+              }
+
+              if (name) {
+                itemsToInsert.push({ table: tableName, name, kelas, mata_pelajaran });
+              }
             }
           }
         }
