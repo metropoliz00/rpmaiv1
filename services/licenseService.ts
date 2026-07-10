@@ -150,12 +150,16 @@ export const deleteUser = (email: string): void => {
 
 // Map DB row to RegisteredUser
 const mapToRegisteredUser = (row: any): RegisteredUser => {
+  const cachedUsers = getRegisteredUsers();
+  const cached = cachedUsers.find(u => u.email === (row.email || "").trim().toLowerCase());
+  const defaultShow = cached ? cached.showAttachments : true;
+
   return {
     email: row.email,
     geminiApiKey: row.gemini_api_key || row.geminiApiKey || "",
     licenseKey: row.license_key || row.licenseKey || "",
     isActive: row.is_active !== undefined ? row.is_active : (row.isActive !== undefined ? row.isActive : true),
-    showAttachments: row.show_attachments !== undefined && row.show_attachments !== null ? row.show_attachments : (row.showAttachments !== undefined ? row.showAttachments : true),
+    showAttachments: row.show_attachments !== undefined && row.show_attachments !== null ? row.show_attachments : (row.showAttachments !== undefined ? row.showAttachments : defaultShow),
     createdAt: row.created_at || row.createdAt || new Date().toISOString()
   };
 };
