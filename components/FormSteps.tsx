@@ -1,7 +1,7 @@
 import React from 'react';
 import { User, BookOpen, Layout, Upload, FilePlus, List, Loader2, Sparkles } from 'lucide-react';
 import { InputGroup, SectionTitle } from './UI';
-import { RPMData, dplOptions, getDefaultDurationsForJP, adjustDurations, getMinutesFromAlokasi } from '../types';
+import { RPMData, dplOptions, getDefaultDurationsForJP, adjustDurations, getMinutesFromAlokasi, getModelSyntaxes } from '../types';
 import { getCPBySubjectAndClass } from '../services/capaianPembelajaranService';
 
 interface StepProps {
@@ -229,7 +229,8 @@ const modelOptions = [
   "Project Based Learning (PjBL)",
   "Discovery Learning",
   "Inquiry Learning",
-  "Cooperative Learning"
+  "Cooperative Learning",
+  "Lainnya"
 ];
 
 export const Step3Detail: React.FC<Step3Props> = ({ formData, setFormData, generateField, generateKegiatanAI, loaders }) => {
@@ -346,28 +347,29 @@ export const Step3Detail: React.FC<Step3Props> = ({ formData, setFormData, gener
             <div className="p-6 bg-white border border-gray-200 rounded-xl shadow-sm grid grid-cols-1 md:grid-cols-2 gap-6">
                 <InputGroup label="Pendekatan Pembelajaran">
                     <select className="w-full p-3 border border-gray-300 rounded-lg bg-white" value={pendekatanOptions.includes(formData.pendekatanPembelajaran) ? formData.pendekatanPembelajaran : (formData.pendekatanPembelajaran ? 'Lainnya' : '')} onChange={(e) => {
-                        if (e.target.value === 'Lainnya') setFormData({...formData, pendekatanPembelajaran: ''});
-                        else setFormData({...formData, pendekatanPembelajaran: e.target.value});
+                        const val = e.target.value;
+                        if (val === 'Lainnya') setFormData({...formData, pendekatanPembelajaran: 'Lainnya'});
+                        else setFormData({...formData, pendekatanPembelajaran: val});
                     }}>
                         <option value="">Pilih Pendekatan</option>
                         {pendekatanOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
                     </select>
-                    {!pendekatanOptions.includes(formData.pendekatanPembelajaran) && formData.pendekatanPembelajaran !== '' && (
-                        <input type="text" className="w-full p-3 mt-2 border border-gray-300 rounded-lg" value={formData.pendekatanPembelajaran} onChange={(e) => setFormData({...formData, pendekatanPembelajaran: e.target.value})} placeholder="Masukkan pendekatan pembelajaran lainnya" />
+                    {(formData.pendekatanPembelajaran === 'Lainnya' || (!pendekatanOptions.includes(formData.pendekatanPembelajaran) && formData.pendekatanPembelajaran !== '')) && (
+                        <input type="text" className="w-full p-3 mt-2 border border-gray-300 rounded-lg" value={formData.pendekatanPembelajaran === 'Lainnya' ? '' : formData.pendekatanPembelajaran} onChange={(e) => setFormData({...formData, pendekatanPembelajaran: e.target.value})} placeholder="Masukkan pendekatan pembelajaran lainnya" />
                     )}
                 </InputGroup>
 
                 <InputGroup label="Model Pembelajaran">
                     <select className="w-full p-3 border border-gray-300 rounded-lg bg-white" value={modelOptions.includes(formData.modelPembelajaran) ? formData.modelPembelajaran : (formData.modelPembelajaran ? 'Lainnya' : '')} onChange={(e) => {
-                        if (e.target.value === 'Lainnya') setFormData({...formData, modelPembelajaran: ''});
-                        else setFormData({...formData, modelPembelajaran: e.target.value});
+                        const val = e.target.value;
+                        if (val === 'Lainnya') setFormData({...formData, modelPembelajaran: 'Lainnya'});
+                        else setFormData({...formData, modelPembelajaran: val});
                     }}>
                         <option value="">Pilih Model Pembelajaran</option>
                         {modelOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-                        <option value="Lainnya">Lainnya</option>
                     </select>
-                    {!modelOptions.includes(formData.modelPembelajaran) && formData.modelPembelajaran !== '' && (
-                        <input type="text" className="w-full p-3 mt-2 border border-gray-300 rounded-lg" value={formData.modelPembelajaran} onChange={(e) => setFormData({...formData, modelPembelajaran: e.target.value})} placeholder="Masukkan model pembelajaran lainnya" />
+                    {(formData.modelPembelajaran === 'Lainnya' || (!modelOptions.includes(formData.modelPembelajaran) && formData.modelPembelajaran !== '')) && (
+                        <input type="text" className="w-full p-3 mt-2 border border-gray-300 rounded-lg" value={formData.modelPembelajaran === 'Lainnya' ? '' : formData.modelPembelajaran} onChange={(e) => setFormData({...formData, modelPembelajaran: e.target.value})} placeholder="Masukkan model pembelajaran lainnya" />
                     )}
                 </InputGroup>
 
@@ -603,18 +605,57 @@ export const Step3Detail: React.FC<Step3Props> = ({ formData, setFormData, gener
                     </div>
                     
                     <div className="space-y-4 pl-4 border-l-4 border-blue-100">
-                        <div>
-                            <label className="block text-xs font-bold text-gray-700 mb-1">1. Memahami (Awal Model)</label>
-                            <textarea className="w-full p-3 border border-gray-300 rounded-lg h-32 font-mono text-sm" value={formData.intiMemahami} onChange={(e) => setFormData({...formData, intiMemahami: e.target.value})} placeholder="Contoh: 1. Murid melakukan observasi..." />
+                        <div className="text-xs font-semibold text-blue-800 bg-blue-50 px-3 py-2 rounded-lg border border-blue-200">
+                            ✨ Sintak Model Pembelajaran Aktif: <span className="font-bold">{formData.modelPembelajaran || 'PBL'}</span> (Isi kegiatan murid pada setiap langkah/sintak di bawah ini)
                         </div>
-                        <div>
-                            <label className="block text-xs font-bold text-gray-700 mb-1">2. Mengaplikasikan (Tengah Model)</label>
-                            <textarea className="w-full p-3 border border-gray-300 rounded-lg h-32 font-mono text-sm" value={formData.intiMengaplikasikan} onChange={(e) => setFormData({...formData, intiMengaplikasikan: e.target.value})} placeholder="Contoh: 1. Murid berdiskusi..." />
-                        </div>
-                        <div>
-                            <label className="block text-xs font-bold text-gray-700 mb-1">3. Merefleksi (Akhir Model)</label>
-                            <textarea className="w-full p-3 border border-gray-300 rounded-lg h-32 font-mono text-sm" value={formData.intiMerefleksi} onChange={(e) => setFormData({...formData, intiMerefleksi: e.target.value})} placeholder="Contoh: 1. Murid menyimpulkan..." />
-                        </div>
+                        {getModelSyntaxes(formData.modelPembelajaran).map((sintak) => {
+                            const val = formData.sintakValues?.[sintak.id] || (
+                                sintak.id === 'sintak1' ? formData.intiMemahami :
+                                sintak.id === 'sintak2' ? formData.intiMengaplikasikan :
+                                sintak.id === 'sintak3' ? formData.intiMerefleksi : ''
+                            );
+                            const isGenerating = loaders[sintak.id];
+                            return (
+                                <div key={sintak.id} className="bg-white p-3 rounded-xl border border-gray-200 shadow-sm space-y-1">
+                                    <div className="flex items-center justify-between">
+                                        <label className="block text-xs font-bold text-gray-800">{sintak.label}</label>
+                                        {generateField && (
+                                            <button
+                                                type="button"
+                                                disabled={isGenerating}
+                                                onClick={() => generateField('kegiatanInti', sintak.id)}
+                                                className="text-[11px] text-blue-600 hover:text-blue-800 font-semibold inline-flex items-center gap-1 bg-blue-50 hover:bg-blue-100 px-2.5 py-1 rounded-lg border border-blue-200 transition-colors disabled:opacity-50"
+                                            >
+                                                {isGenerating ? <Loader2 size={11} className="animate-spin" /> : <Sparkles size={11} />}
+                                                {isGenerating ? 'Generating...' : 'Generate AI'}
+                                            </button>
+                                        )}
+                                    </div>
+                                    <p className="text-[11px] text-gray-500 italic">{sintak.description}</p>
+                                    <textarea 
+                                        className="w-full p-3 border border-gray-300 rounded-lg h-28 font-mono text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" 
+                                        value={val} 
+                                        onChange={(e) => {
+                                            const updated = { ...(formData.sintakValues || {}), [sintak.id]: e.target.value };
+                                            let im = formData.intiMemahami;
+                                            let imeg = formData.intiMengaplikasikan;
+                                            let imer = formData.intiMerefleksi;
+                                            if (sintak.id === 'sintak1') im = e.target.value;
+                                            if (sintak.id === 'sintak2') imeg = e.target.value;
+                                            if (sintak.id === 'sintak3') imer = e.target.value;
+                                            setFormData({
+                                                ...formData,
+                                                sintakValues: updated,
+                                                intiMemahami: im,
+                                                intiMengaplikasikan: imeg,
+                                                intiMerefleksi: imer
+                                            });
+                                        }} 
+                                        placeholder={`Contoh: 1. Murid mengamati masalah...`} 
+                                    />
+                                </div>
+                            );
+                        })}
                     </div>
                 </div>
 

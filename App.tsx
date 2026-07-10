@@ -8,7 +8,7 @@ import {
 import { Step1Identitas, Step2Konten, Step3Detail } from './components/FormSteps';
 import { RPMDocument } from './components/Preview';
 import { Button } from './components/UI';
-import { initialFormData, RPMData, RubrikData, LKMData } from './types';
+import { initialFormData, RPMData, RubrikData, LKMData, getModelSyntaxes } from './types';
 import { generateContent, cleanJSON, buildBulkPrompts, buildPrompt, testApiKey, formatNumberedText } from './services/geminiService';
 import { ActivationScreen } from './components/ActivationScreen';
 import { checkIsActivated, clearCredentials, getSavedCredentials, saveCredentials, checkUserOnDb, updateUserGeminiKeyOnDb, getRegisteredUsers } from './services/licenseService';
@@ -243,23 +243,53 @@ export default function App() {
           return;
       }
 
-      setLoaders(prev => ({ ...prev, [fieldName]: true }));
+      setLoaders(prev => ({ ...prev, [targetField || fieldName]: true }));
 
-      const prompt = buildPrompt(fieldName, formData, additionalContext, uploadedFile?.name);
+      const prompt = buildPrompt(fieldName === 'kegiatanInti' && targetField.startsWith('sintak') ? targetField : fieldName, formData, additionalContext, uploadedFile?.name);
 
       try {
-          // Special handler for JSON output in 'kegiatanInti'
-          if (fieldName === 'kegiatanInti') {
+          if (fieldName === 'kegiatanInti' && !targetField.startsWith('sintak')) {
                const res = await generateContent(prompt, userGeminiKey);
                const json = cleanJSON(res);
                if (json) {
+                   const newSintakValues = { ...(formData.sintakValues || {}) };
+                   const syntaxes = getModelSyntaxes(formData.modelPembelajaran);
+                   syntaxes.forEach(s => {
+                       if (json[s.id]) {
+                           newSintakValues[s.id] = formatNumberedText(json[s.id]);
+                       } else if (json[s.label]) {
+                           newSintakValues[s.id] = formatNumberedText(json[s.label]);
+                       }
+                   });
+                   if (json.memahami) newSintakValues['sintak1'] = formatNumberedText(json.memahami);
+                   if (json.mengaplikasikan) newSintakValues['sintak2'] = formatNumberedText(json.mengaplikasikan);
+                   if (json.merefleksi) newSintakValues['sintak3'] = formatNumberedText(json.merefleksi);
+
                    setFormData(prev => ({
                        ...prev,
-                       intiMemahami: formatNumberedText(json.memahami || ""),
-                       intiMengaplikasikan: formatNumberedText(json.mengaplikasikan || ""),
-                       intiMerefleksi: formatNumberedText(json.merefleksi || "")
+                       sintakValues: newSintakValues,
+                       intiMemahami: formatNumberedText(json.sintak1 || json.memahami || prev.intiMemahami),
+                       intiMengaplikasikan: formatNumberedText(json.sintak2 || json.mengaplikasikan || prev.intiMengaplikasikan),
+                       intiMerefleksi: formatNumberedText(json.sintak3 || json.merefleksi || prev.intiMerefleksi)
                    }));
                }
+          } else if (targetField.startsWith('sintak')) {
+              const result = await generateContent(prompt, userGeminiKey);
+              const formatted = formatNumberedText(result.trim());
+              const updatedSintak = { ...(formData.sintakValues || {}), [targetField]: formatted };
+              let im = formData.intiMemahami;
+              let imeg = formData.intiMengaplikasikan;
+              let imer = formData.intiMerefleksi;
+              if (targetField === 'sintak1') im = formatted;
+              if (targetField === 'sintak2') imeg = formatted;
+              if (targetField === 'sintak3') imer = formatted;
+              setFormData(prev => ({
+                  ...prev,
+                  sintakValues: updatedSintak,
+                  intiMemahami: im,
+                  intiMengaplikasikan: imeg,
+                  intiMerefleksi: imer
+              }));
           } else {
               const result = await generateContent(prompt, userGeminiKey);
               const formatted = ['tujuanPembelajaran', 'kegiatanAwal', 'kegiatanPenutup'].includes(targetField)
@@ -271,7 +301,7 @@ export default function App() {
           console.error(e);
           setAlertModalMessage("Gagal generate AI: " + (e.message || e));
       } finally {
-          setLoaders(prev => ({ ...prev, [fieldName]: false }));
+          setLoaders(prev => ({ ...prev, [targetField || fieldName]: false }));
       }
   };
 
@@ -289,13 +319,29 @@ export default function App() {
           const res = await generateContent(prompt, userGeminiKey);
           const json = cleanJSON(res);
           if (json) {
+              const newSintakValues = { ...(formData.sintakValues || {}) };
+              const syntaxes = getModelSyntaxes(formData.modelPembelajaran);
+              if (json.kegiatanInti) {
+                  syntaxes.forEach(s => {
+                      if (json.kegiatanInti[s.id]) {
+                          newSintakValues[s.id] = formatNumberedText(json.kegiatanInti[s.id]);
+                      } else if (json.kegiatanInti[s.label]) {
+                          newSintakValues[s.id] = formatNumberedText(json.kegiatanInti[s.label]);
+                      }
+                  });
+                  if (json.kegiatanInti.memahami) newSintakValues['sintak1'] = formatNumberedText(json.kegiatanInti.memahami);
+                  if (json.kegiatanInti.mengaplikasikan) newSintakValues['sintak2'] = formatNumberedText(json.kegiatanInti.mengaplikasikan);
+                  if (json.kegiatanInti.merefleksi) newSintakValues['sintak3'] = formatNumberedText(json.kegiatanInti.merefleksi);
+              }
+
               setFormData(prev => ({
                   ...prev,
                   tujuanPembelajaran: formatNumberedText(json.tujuanPembelajaran || prev.tujuanPembelajaran),
                   kegiatanAwal: formatNumberedText(json.kegiatanAwal || prev.kegiatanAwal),
-                  intiMemahami: formatNumberedText(json.kegiatanInti?.memahami || prev.intiMemahami),
-                  intiMengaplikasikan: formatNumberedText(json.kegiatanInti?.mengaplikasikan || prev.intiMengaplikasikan),
-                  intiMerefleksi: formatNumberedText(json.kegiatanInti?.merefleksi || prev.intiMerefleksi),
+                  sintakValues: newSintakValues,
+                  intiMemahami: formatNumberedText(json.kegiatanInti?.memahami || json.kegiatanInti?.sintak1 || prev.intiMemahami),
+                  intiMengaplikasikan: formatNumberedText(json.kegiatanInti?.mengaplikasikan || json.kegiatanInti?.sintak2 || prev.intiMengaplikasikan),
+                  intiMerefleksi: formatNumberedText(json.kegiatanInti?.merefleksi || json.kegiatanInti?.sintak3 || prev.intiMerefleksi),
                   kegiatanPenutup: formatNumberedText(json.kegiatanPenutup || prev.kegiatanPenutup)
               }));
               setToastMessage("Berhasil generate seluruh kegiatan pembelajaran!");

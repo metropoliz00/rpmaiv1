@@ -1,5 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
-import { RPMData } from "../types";
+import { RPMData, getModelSyntaxes } from "../types";
 
 /**
  * Gets a GoogleGenAI instance with the appropriate API Key.
@@ -181,6 +181,8 @@ export const buildBulkPrompts = (type: 'rpm' | 'lampiran', formData: RPMData): s
   `;
 
   if (type === 'rpm') {
+      const syntaxes = getModelSyntaxes(formData.modelPembelajaran);
+      const syntaxMapJson = syntaxes.map(s => `"${s.id}": "3-5 poin aktivitas murid aktif mendeskripsikan ${s.label}, diawali 1., 2., 3."`).join(',\n          ');
       return `${baseContext}
       Buat Rencana Pelaksanaan Pembelajaran (RPM) yang komprehensif dalam format JSON. 
       PENTING: Gunakan penomoran berurutan (1., 2., 3., dst.) dengan format "1. Murid..." pada setiap poin di bawah ini:
@@ -188,9 +190,7 @@ export const buildBulkPrompts = (type: 'rpm' | 'lampiran', formData: RPMData): s
         "tujuanPembelajaran": "Buat 3 Tujuan Pembelajaran spesifik mengikuti rumus 'Melalui [pendekatan/metode], murid dapat [KKO] [materi] dengan [tepat]' dengan penomoran 1., 2., 3.",
         "kegiatanAwal": "Buat Kegiatan Awal dengan minimal 3 poin (Apersepsi/Motivasi, dll) diawali dengan 1., 2., 3. dan gunakan **BOLD** pada kata kunci.",
         "kegiatanInti": {
-          "memahami": "3-5 poin aktivitas murid aktif sesuai sintak model ${formData.modelPembelajaran}, diawali 1., 2., 3.",
-          "mengaplikasikan": "3-5 poin aktivitas murid diskusi/eksperimen sesuai sintak model ${formData.modelPembelajaran}, diawali 1., 2., 3.",
-          "merefleksi": "3-5 poin aktivitas murid menyimpulkan/refleksi sesuai sintak model ${formData.modelPembelajaran}, diawali 1., 2., 3."
+          ${syntaxMapJson}
         },
         "kegiatanPenutup": "Buat Kegiatan Penutup dengan minimal 3 poin diawali 1., 2., 3. dan gunakan **BOLD** pada kata kunci."
       }
@@ -225,10 +225,21 @@ export const buildPrompt = (fieldName: string, formData: RPMData, additionalCont
     if (additionalContext) context += `\nKonteks tambahan: ${additionalContext}`;
     if (fileName) context += `\nReferensikan data dari file: ${fileName}`;
 
+    const syntaxes = getModelSyntaxes(formData.modelPembelajaran);
+    const targetSintak = syntaxes.find(s => s.id === fieldName);
+    
+    let intiPrompt = '';
+    if (targetSintak) {
+        intiPrompt = `Buat 3-5 poin aktivitas murid untuk langkah sintaks "${targetSintak.label}" dalam model ${formData.modelPembelajaran}, dengan penomoran berurutan 1., 2., 3. berawalan "Murid".`;
+    } else {
+        const syntaxMapJson = syntaxes.map(s => `"${s.id}": "..."`).join(', ');
+        intiPrompt = `Buat Kegiatan Inti dalam format JSON: { ${syntaxMapJson} } sesuai sintak model ${formData.modelPembelajaran}, dengan penomoran berurutan 1., 2., 3. berawalan "Murid".`;
+    }
+
     const prompts: Record<string, string> = {
         tujuanPembelajaran: `Buat 3 Tujuan Pembelajaran spesifik mengikuti rumus 'Melalui [pendekatan/metode], murid dapat [KKO] [materi] dengan [tepat]' dengan format penomoran 1., 2., 3.`,
         kegiatanAwal: `Buat Kegiatan Awal (Pendahuluan) interaktif dengan format penomoran berurutan (1. Murid..., 2. Murid..., 3. Murid...).`,
-        kegiatanInti: `Buat Kegiatan Inti dalam format JSON: {"memahami": "...", "mengaplikasikan": "...", "merefleksi": "..."} sesuai sintak model ${formData.modelPembelajaran}, dengan penomoran berurutan 1., 2., 3. berawalan "Murid".`,
+        kegiatanInti: intiPrompt,
         kegiatanPenutup: `Buat Kegiatan Penutup (Refleksi) dengan format penomoran berurutan (1. Murid..., 2. Murid..., 3. Murid...).`,
         metode: `Saran 3 metode pembelajaran yang paling cocok.`,
         lintasDisiplin: `2 Mata pelajaran yang relevan untuk diintegrasikan.`,

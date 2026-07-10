@@ -30,11 +30,85 @@ export interface RPMData {
   kegiatanAwalDurasi: number;
   kegiatanIntiDurasi: number;
   kegiatanPenutupDurasi: number;
+  sintakValues?: Record<string, string>;
   materiContent?: string;
   lkmContent?: any;
   rubrikContent?: any;
   soalContent?: string;
 }
+
+export interface SintakDef {
+  id: string;
+  label: string;
+  description: string;
+}
+
+export const getModelSyntaxes = (model: string): SintakDef[] => {
+  const m = (model || '').toLowerCase();
+  if (m.includes('project') || m.includes('pjbl')) {
+    return [
+      { id: 'sintak1', label: '1. Pertanyaan Mendasar (Start with Essential Question)', description: 'Murid dihadapkan pada pertanyaan atau masalah esensial terkait proyek.' },
+      { id: 'sintak2', label: '2. Menyusun Perencanaan Proyek (Design Plan)', description: 'Murid menyusun rencana pembuatan proyek, aturan, dan pemilihan aktivitas.' },
+      { id: 'sintak3', label: '3. Menyusun Jadwal (Create Schedule)', description: 'Murid bersama guru menyusun jadwal penyelesaian proyek.' },
+      { id: 'sintak4', label: '4. Memonitor Kemajuan Proyek (Monitor Progress)', description: 'Murid melaksanakan proyek dengan bimbingan dan monitoring guru.' },
+      { id: 'sintak5', label: '5. Menguji Hasil (Assess Outcome)', description: 'Murid mempresentasikan atau menguji produk/hasil proyek.' },
+      { id: 'sintak6', label: '6. Evaluasi Pengalaman (Evaluate Experience)', description: 'Murid melakukan refleksi dan evaluasi terhadap proses dan hasil proyek.' }
+    ];
+  } else if (m.includes('discovery')) {
+    return [
+      { id: 'sintak1', label: '1. Stimulasi / Pemberian Rangsangan (Stimulation)', description: 'Murid mengamati fenomena, membaca bahan bacaan, atau diberi pertanyaan pancingan.' },
+      { id: 'sintak2', label: '2. Identifikasi Masalah (Problem Statement)', description: 'Murid merumuskan pertanyaan/hipotesis sementara terhadap masalah.' },
+      { id: 'sintak3', label: '3. Pengumpulan Data (Data Collection)', description: 'Murid mengumpulkan informasi melalui eksperimen, literatur, atau observasi.' },
+      { id: 'sintak4', label: '4. Pengolahan Data (Data Processing)', description: 'Murid mengolah, mengelompokkan, dan menganalisis data hasil temuan.' },
+      { id: 'sintak5', label: '5. Pembuktian (Verification)', description: 'Murid membuktikan hipotesis dengan temuan data dan teori.' },
+      { id: 'sintak6', label: '6. Menarik Kesimpulan (Generalization)', description: 'Murid merumuskan kesimpulan prinsip/konsep umum.' }
+    ];
+  } else if (m.includes('inquiry')) {
+    return [
+      { id: 'sintak1', label: '1. Orientasi & Perumusan Masalah', description: 'Murid mengamati situasi dan merumuskan pertanyaan penyelidikan.' },
+      { id: 'sintak2', label: '2. Merumuskan Hipotesis', description: 'Murid menyusun dugaan atau jawaban sementara.' },
+      { id: 'sintak3', label: '3. Mengumpulkan Data', description: 'Murid mencari data dan bukti melalui observasi atau eksperimen.' },
+      { id: 'sintak4', label: '4. Menguji Hipotesis', description: 'Murid menganalisis data untuk menguji kebenaran hipotesis.' },
+      { id: 'sintak5', label: '5. Merumuskan Kesimpulan', description: 'Murid menyimpulkan hasil penemuan penyelidikan.' }
+    ];
+  } else if (m.includes('cooperative')) {
+    return [
+      { id: 'sintak1', label: '1. Penyampaian Tujuan & Motivasi', description: 'Murid memahami tujuan pembelajaran dan termotivasi.' },
+      { id: 'sintak2', label: '2. Penyajian Informasi', description: 'Murid menyimak paparan materi dasar dari guru/sumber.' },
+      { id: 'sintak3', label: '3. Pengorganisasian Kelompok Belajar', description: 'Murid bergabung dalam kelompok heterogen untuk berkolaborasi.' },
+      { id: 'sintak4', label: '4. Membimbing Kelompok Bekerja', description: 'Murid berdiskusi dan menyelesaikan tugas kelompok dengan bimbingan.' },
+      { id: 'sintak5', label: '5. Evaluasi & Presentasi', description: 'Murid mempresentasikan hasil kerja kelompok dan dievaluasi.' },
+      { id: 'sintak6', label: '6. Penghargaan Kelompok', description: 'Murid menerima apresiasi atas kinerja kelompok.' }
+    ];
+  } else if (m.includes('pbl') || m.includes('problem based')) {
+    return [
+      { id: 'sintak1', label: '1. Orientasi Peserta Didik pada Masalah', description: 'Murid mengamati masalah nyata atau studi kasus yang disajikan.' },
+      { id: 'sintak2', label: '2. Mengorganisasikan Peserta Didik untuk Belajar', description: 'Murid mendefinisikan tugas belajar dan membentuk kelompok.' },
+      { id: 'sintak3', label: '3. Membimbing Penyelidikan Individu / Kelompok', description: 'Murid mengumpulkan informasi dan melakukan investigasi/eksperimen.' },
+      { id: 'sintak4', label: '4. Mengembangkan dan Menyajikan Hasil Karya', description: 'Murid menyusun laporan/produk dan mempresentasikannya.' },
+      { id: 'sintak5', label: '5. Menganalisis & Mengevaluasi Proses Pemecahan Masalah', description: 'Murid merefleksi dan mengevaluasi hasil pemecahan masalah.' }
+    ];
+  } else if (m && m !== 'lainnya') {
+    // Custom / Lainnya model specified by user
+    const customName = model.trim();
+    return [
+      { id: 'sintak1', label: `1. Orientasi & Pengenalan (${customName})`, description: `Murid memahami konsep dasar dan orientasi awal dalam model ${customName}.` },
+      { id: 'sintak2', label: `2. Eksplorasi & Pengumpulan Informasi (${customName})`, description: `Murid menggali informasi dan mengumpulkan data terkait topik ${customName}.` },
+      { id: 'sintak3', label: `3. Elaborasi & Kolaborasi / Praktik (${customName})`, description: `Murid berkolaborasi, mendiskusikan, atau melakukan praktik sesuai langkah ${customName}.` },
+      { id: 'sintak4', label: `4. Konfirmasi & Presentasi Hasil (${customName})`, description: `Murid menyajikan hasil kerja dan mendapatkan konfirmasi/umpan balik.` },
+      { id: 'sintak5', label: `5. Refleksi & Kesimpulan (${customName})`, description: `Murid melakukan refleksi dan menyimpulkan pembelajaran yang diperoleh.` }
+    ];
+  } else {
+    // Default / Empty
+    return [
+      { id: 'sintak1', label: '1. Orientasi Peserta Didik pada Masalah', description: 'Murid mengamati masalah nyata atau studi kasus yang disajikan.' },
+      { id: 'sintak2', label: '2. Mengorganisasikan Peserta Didik untuk Belajar', description: 'Murid mendefinisikan tugas belajar dan membentuk kelompok.' },
+      { id: 'sintak3', label: '3. Membimbing Penyelidikan Individu / Kelompok', description: 'Murid mengumpulkan informasi dan melakukan investigasi/eksperimen.' },
+      { id: 'sintak4', label: '4. Mengembangkan dan Menyajikan Hasil Karya', description: 'Murid menyusun laporan/produk dan mempresentasikannya.' },
+      { id: 'sintak5', label: '5. Menganalisis & Mengevaluasi Proses Pemecahan Masalah', description: 'Murid merefleksi dan mengevaluasi hasil pemecahan masalah.' }
+    ];
+  }
+};
 
 export const getMinutesFromAlokasi = (alokasi: string): number => {
   if (!alokasi) return 0;

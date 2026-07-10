@@ -1,5 +1,5 @@
 import React from 'react';
-import { RPMData, LKMData, RubrikData, SoalConfig, dplOptions, getDefaultDurationsForJP } from '../types';
+import { RPMData, LKMData, RubrikData, SoalConfig, dplOptions, getDefaultDurationsForJP, getModelSyntaxes } from '../types';
 import { A4Page, Button } from './UI';
 import { Sparkles, BrainCircuit } from 'lucide-react';
 
@@ -262,30 +262,26 @@ export const RPMDocument: React.FC<PreviewProps> = ({
                                         {renderListFromText(formData.kegiatanAwal)}
                                     </div>
 
-                                    <div className="bg-orange-100 p-2 font-bold text-orange-900 pl-4 border-b border-black shadow-inner">Kegiatan Inti (Berkesadaran, Bermakna, Menggembirakan) - {getIntiMinutes()} Menit</div>
+                                    <div className="bg-orange-100 p-2 font-bold text-orange-900 pl-4 border-b border-black shadow-inner">Kegiatan Inti ({formData.modelPembelajaran || 'Model Pembelajaran'}) - {getIntiMinutes()} Menit</div>
                                     <table className="w-full border-collapse text-inherit">
                                         <tbody>
-                                            <tr className="border-b border-black break-inside-avoid">
-                                                <td className="p-2 w-[35%] align-top bg-gray-50 border-r border-black">
-                                                    <strong className="text-blue-900">A. Memahami</strong><br/>
-                                                    <span className="text-[10px] italic text-gray-500">(Berkesadaran, Bermakna)</span>
-                                                </td>
-                                                <td className="p-2 align-top text-justify">{renderListFromText(formData.intiMemahami)}</td>
-                                            </tr>
-                                            <tr className="border-b border-black break-inside-avoid">
-                                                <td className="p-2 align-top bg-gray-50 border-r border-black">
-                                                    <strong className="text-blue-900">B. Mengaplikasikan</strong><br/>
-                                                    <span className="text-[10px] italic text-gray-500">(Bermakna, Mengembirakan)</span>
-                                                </td>
-                                                <td className="p-2 align-top text-justify">{renderListFromText(formData.intiMengaplikasikan)}</td>
-                                            </tr>
-                                            <tr className="break-inside-avoid">
-                                                <td className="p-2 align-top bg-gray-50 border-r border-black">
-                                                    <strong className="text-blue-900">C. Merefleksi</strong><br/>
-                                                    <span className="text-[10px] italic text-gray-500">(Berkesadaran, Bermakna)</span>
-                                                </td>
-                                                <td className="p-2 align-top text-justify">{renderListFromText(formData.intiMerefleksi)}</td>
-                                            </tr>
+                                            {getModelSyntaxes(formData.modelPembelajaran).map((sintak, idx) => {
+                                                const textVal = formData.sintakValues?.[sintak.id] || (
+                                                    sintak.id === 'sintak1' ? formData.intiMemahami :
+                                                    sintak.id === 'sintak2' ? formData.intiMengaplikasikan :
+                                                    sintak.id === 'sintak3' ? formData.intiMerefleksi : '-'
+                                                );
+                                                const syntaxesCount = getModelSyntaxes(formData.modelPembelajaran).length;
+                                                return (
+                                                    <tr key={sintak.id} className={idx < syntaxesCount - 1 ? "border-b border-black break-inside-avoid" : "break-inside-avoid"}>
+                                                        <td className="p-2 w-[40%] align-top bg-gray-50 border-r border-black">
+                                                            <strong className="text-blue-900">{sintak.label}</strong><br/>
+                                                            <span className="text-[10px] italic text-gray-500">({sintak.description})</span>
+                                                        </td>
+                                                        <td className="p-2 align-top text-justify">{renderListFromText(textVal)}</td>
+                                                    </tr>
+                                                );
+                                            })}
                                         </tbody>
                                     </table>
 
