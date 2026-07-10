@@ -50,6 +50,49 @@ export default function App() {
   const [aiProvider, setAiProvider] = useState('openai');
   const [isTestingKey, setIsTestingKey] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [personalKeyInput, setPersonalKeyInput] = useState('');
+
+  React.useEffect(() => {
+    if (showSettings) {
+      setPersonalKeyInput(userGeminiKey.includes("DUMMY") ? "" : userGeminiKey);
+      setTestResult(null);
+    }
+  }, [showSettings, userGeminiKey]);
+
+  const handleSavePersonalKey = async () => {
+    if (!personalKeyInput.trim()) {
+      setAlertModalMessage("API Key tidak boleh kosong.");
+      return;
+    }
+    
+    setIsTestingKey(true);
+    setTestResult(null);
+    try {
+      const result = await testApiKey(personalKeyInput);
+      if (result.success) {
+        setUserGeminiKey(personalKeyInput);
+        localStorage.setItem('user_gemini_api_key', personalKeyInput);
+        
+        const creds = getSavedCredentials();
+        if (creds && creds.email) {
+            await updateUserGeminiKeyOnDb(creds.email, personalKeyInput);
+        }
+        
+        setTestResult({ success: true, message: "API Key berhasil divalidasi dan disimpan!" });
+        setToastMessage("API Key Pribadi berhasil disimpan!");
+        setTimeout(() => {
+            setToastMessage(null);
+            setShowSettings(false);
+        }, 2000);
+      } else {
+        setTestResult({ success: false, message: result.message || "API Key tidak valid." });
+      }
+    } catch (e: any) {
+      setTestResult({ success: false, message: e.message || "Terjadi kesalahan saat memvalidasi API Key." });
+    } finally {
+      setIsTestingKey(false);
+    }
+  };
 
   // Load Gemini Key and showAttachments from DB on activation with polling
   React.useEffect(() => {
@@ -1052,6 +1095,35 @@ export default function App() {
                         </div>
                     </div>
                 </div>
+
+                {/* Kolom Input API Key Pribadi */}
+                {(!userGeminiKey || userGeminiKey.trim() === "" || userGeminiKey.includes("DUMMY")) && (
+                  <div className="mb-5 bg-slate-50 border border-slate-200 rounded-xl p-4">
+                    <label className="block text-sm font-semibold text-slate-800 mb-2">Gunakan API Key Pribadi Anda</label>
+                    <p className="text-xs text-slate-500 mb-3">Jika Anda ingin menggunakan API key Gemini pribadi, masukkan di sini.</p>
+                    <div className="flex gap-2">
+                        <input 
+                            type="password"
+                            value={personalKeyInput}
+                            onChange={(e) => setPersonalKeyInput(e.target.value)}
+                            placeholder="AIzaSy..."
+                            className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-none focus:border-blue-500 shadow-sm"
+                        />
+                        <button 
+                            onClick={handleSavePersonalKey}
+                            disabled={isTestingKey}
+                            className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg text-sm transition-colors shadow-sm disabled:opacity-50 whitespace-nowrap"
+                        >
+                            {isTestingKey ? "Memeriksa..." : "Simpan"}
+                        </button>
+                    </div>
+                    {testResult && (
+                        <p className={`text-xs mt-2 font-medium ${testResult.success ? 'text-green-600' : 'text-red-600'}`}>
+                            {testResult.message}
+                        </p>
+                    )}
+                  </div>
+                )}
 
                 <div className="flex justify-end">
                      <button 
