@@ -61,6 +61,8 @@ export const ActivationScreen: React.FC<ActivationScreenProps> = ({ onActivated 
   const [curriculumItems, setCurriculumItems] = useState<{ kelas: any[], mataPelajaran: any[], materi: any[] }>({ kelas: [], mataPelajaran: [], materi: [] });
   const [manualCategory, setManualCategory] = useState<'db_kelas' | 'db_mata_pelajaran' | 'db_materi'>('db_kelas');
   const [manualName, setManualName] = useState('');
+  const [manualKelas, setManualKelas] = useState('');
+  const [manualMapel, setManualMapel] = useState('');
 
   // Add User Form States
   const [newEmail, setNewEmail] = useState('');
@@ -104,9 +106,16 @@ export const ActivationScreen: React.FC<ActivationScreenProps> = ({ onActivated 
   const handleManualAddCurriculum = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!manualName.trim()) return;
-    const success = await addCurriculumItem(manualCategory, manualName.trim());
+    const success = await addCurriculumItem(
+      manualCategory, 
+      manualName.trim(), 
+      manualCategory === 'db_materi' ? manualKelas : undefined,
+      manualCategory === 'db_materi' ? manualMapel : undefined
+    );
     if (success) {
       setManualName('');
+      setManualKelas('');
+      setManualMapel('');
       setSuccessToast("Item kurikulum berhasil ditambahkan ke database!");
       setTimeout(() => setSuccessToast(null), 2500);
       loadCurriculumData();
@@ -729,23 +738,57 @@ export const ActivationScreen: React.FC<ActivationScreenProps> = ({ onActivated 
                         <option value="db_materi">Materi Pokok</option>
                       </select>
                     </div>
-                    <div className="sm:col-span-2">
-                      <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-600 mb-1">Nama / Item Baru</label>
-                      <div className="flex gap-2">
-                        <input 
-                          type="text"
-                          value={manualName}
-                          onChange={(e) => setManualName(e.target.value)}
-                          placeholder="Contoh: VII atau Matematika atau Pecahan"
-                          className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-500 shadow-sm"
-                          required
-                        />
-                        <button
-                          type="submit"
-                          className="bg-blue-600 hover:bg-blue-500 text-white font-bold px-4 py-2 rounded-lg text-xs transition-colors flex items-center gap-1 shrink-0 shadow-sm"
-                        >
-                          <Plus size={14} /> Tambah
-                        </button>
+                    <div className="sm:col-span-2 space-y-2">
+                      {manualCategory === 'db_materi' && (
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-600 mb-1">Pilih Kelas</label>
+                            <select 
+                              value={manualKelas}
+                              onChange={(e) => setManualKelas(e.target.value)}
+                              className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 focus:outline-none focus:border-blue-500 shadow-sm"
+                              required
+                            >
+                              <option value="">-- Pilih Kelas --</option>
+                              {curriculumItems.kelas.map((k: any) => (
+                                <option key={k.id} value={k.name}>{k.name}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-600 mb-1">Pilih Mapel</label>
+                            <select 
+                              value={manualMapel}
+                              onChange={(e) => setManualMapel(e.target.value)}
+                              className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 focus:outline-none focus:border-blue-500 shadow-sm"
+                              required
+                            >
+                              <option value="">-- Pilih Mapel --</option>
+                              {curriculumItems.mataPelajaran.map((mp: any) => (
+                                <option key={mp.id} value={mp.name}>{mp.name}</option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                      )}
+                      <div>
+                        <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-600 mb-1">Nama / Item Baru</label>
+                        <div className="flex gap-2">
+                          <input 
+                            type="text"
+                            value={manualName}
+                            onChange={(e) => setManualName(e.target.value)}
+                            placeholder={manualCategory === 'db_materi' ? "Nama Materi Pokok..." : "Contoh: IV atau Matematika"}
+                            className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-500 shadow-sm"
+                            required
+                          />
+                          <button
+                            type="submit"
+                            className="bg-blue-600 hover:bg-blue-500 text-white font-bold px-4 py-2 rounded-lg text-xs transition-colors flex items-center gap-1 shrink-0 shadow-sm"
+                          >
+                            <Plus size={14} /> Tambah
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </form>
@@ -812,11 +855,18 @@ export const ActivationScreen: React.FC<ActivationScreenProps> = ({ onActivated 
                           <p className="text-[11px] text-slate-400 italic text-center py-2">Belum ada data</p>
                         ) : (
                           curriculumItems.materi.map((item: any) => (
-                            <div key={item.id} className="flex justify-between items-center bg-slate-50 hover:bg-slate-100 px-2 py-1 rounded text-xs">
-                              <span className="font-medium text-slate-700 truncate">{item.name}</span>
+                            <div key={item.id} className="flex justify-between items-start bg-slate-50 hover:bg-slate-100 p-2 rounded text-xs gap-2">
+                              <div className="space-y-0.5 truncate">
+                                <span className="font-semibold text-slate-800 block truncate">{item.name}</span>
+                                {(item.kelas || item.mata_pelajaran) && (
+                                  <span className="text-[10px] text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded font-mono inline-block">
+                                    {item.kelas ? `Kelas ${item.kelas}` : ''} {item.kelas && item.mata_pelajaran ? '•' : ''} {item.mata_pelajaran || ''}
+                                  </span>
+                                )}
+                              </div>
                               <button 
                                 onClick={() => handleDeleteCurriculum('db_materi', item.id)}
-                                className="text-red-500 hover:text-red-700 p-0.5"
+                                className="text-red-500 hover:text-red-700 p-0.5 shrink-0"
                                 title="Hapus"
                               >
                                 <Trash2 size={12} />

@@ -20,6 +20,8 @@ create table if not exists public.db_mata_pelajaran (
 create table if not exists public.db_materi (
   id uuid default gen_random_uuid() primary key,
   name text not null,
+  kelas text,
+  mata_pelajaran text,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 

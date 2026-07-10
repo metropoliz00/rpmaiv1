@@ -114,17 +114,13 @@ export const Step2Konten: React.FC<Step2Props> = ({ formData, setFormData, uploa
 
   const dbMateri = React.useMemo(() => {
     if (!dbMateriItems) return null;
-    if (!formData.mataPelajaran) return dbMateriItems.map(i => i.name).filter(Boolean);
-    const matched = dbMateriItems.filter(i => 
-      !i.mata_pelajaran || 
-      i.mata_pelajaran.trim() === '' || 
-      i.mata_pelajaran.toLowerCase() === formData.mataPelajaran.toLowerCase()
-    );
-    if (matched.length > 0) {
-      return matched.map(i => i.name).filter(Boolean);
-    }
-    return dbMateriItems.map(i => i.name).filter(Boolean); // fallback
-  }, [dbMateriItems, formData.mataPelajaran]);
+    const filtered = dbMateriItems.filter(i => {
+      const matchKelas = !formData.kelas || !i.kelas || i.kelas.trim() === '' || i.kelas.toLowerCase() === formData.kelas.toLowerCase();
+      const matchMapel = !formData.mataPelajaran || !i.mata_pelajaran || i.mata_pelajaran.trim() === '' || i.mata_pelajaran.toLowerCase() === formData.mataPelajaran.toLowerCase();
+      return matchKelas && matchMapel;
+    });
+    return filtered.map(i => i.name).filter(Boolean);
+  }, [dbMateriItems, formData.kelas, formData.mataPelajaran]);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
