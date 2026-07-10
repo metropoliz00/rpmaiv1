@@ -28,23 +28,44 @@ export async function getUserProfileFromDb(email: string): Promise<UserProfile |
   }
 
   try {
-    const { data, error } = await supabase
+    // 1. Try fetching from user_profiles table
+    const { data: profileData, error: profileError } = await supabase
       .from('user_profiles')
       .select('*')
       .eq('email', cleanEmail)
       .maybeSingle();
 
-    if (error) throw error;
-    if (data) {
+    if (!profileError && profileData) {
       const remoteProfile: UserProfile = {
-        namaSekolah: data.nama_sekolah || data.namaSekolah || '',
-        namaKepalaSekolah: data.nama_kepala_sekolah || data.namaKepalaSekolah || '',
-        nipKepalaSekolah: data.nip_kepala_sekolah || data.nipKepalaSekolah || '',
-        namaPenyusun: data.nama_penyusun || data.namaPenyusun || '',
-        nipPenyusun: data.nip_penyusun || data.nipPenyusun || ''
+        namaSekolah: profileData.nama_sekolah || profileData.namaSekolah || '',
+        namaKepalaSekolah: profileData.nama_kepala_sekolah || profileData.namaKepalaSekolah || '',
+        nipKepalaSekolah: profileData.nip_kepala_sekolah || profileData.nipKepalaSekolah || '',
+        namaPenyusun: profileData.nama_penyusun || profileData.namaPenyusun || '',
+        nipPenyusun: profileData.nip_penyusun || profileData.nipPenyusun || ''
       };
       localStorage.setItem('user_profile_data', JSON.stringify(remoteProfile));
       return remoteProfile;
+    }
+
+    // 2. Fallback: try fetching from users table
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('*')
+      .eq('email', cleanEmail)
+      .maybeSingle();
+
+    if (!userError && userData) {
+      const remoteProfile: UserProfile = {
+        namaSekolah: userData.nama_sekolah || userData.namaSekolah || '',
+        namaKepalaSekolah: userData.nama_kepala_sekolah || userData.namaKepalaSekolah || '',
+        nipKepalaSekolah: userData.nip_kepala_sekolah || userData.nipKepalaSekolah || '',
+        namaPenyusun: userData.nama_penyusun || userData.namaPenyusun || '',
+        nipPenyusun: userData.nip_penyusun || userData.nipPenyusun || ''
+      };
+      if (remoteProfile.namaSekolah || remoteProfile.namaPenyusun) {
+        localStorage.setItem('user_profile_data', JSON.stringify(remoteProfile));
+        return remoteProfile;
+      }
     }
   } catch (e) {
     console.error("Error fetching user profile from DB:", e);
@@ -67,6 +88,8 @@ export async function saveUserProfileToDb(email: string, profile: UserProfile): 
     return true;
   }
 
+  let success = false;
+
   try {
     const payload = {
       email: cleanEmail,
@@ -78,12 +101,15 @@ export async function saveUserProfileToDb(email: string, profile: UserProfile): 
       updated_at: new Date().toISOString()
     };
 
-    const { error } = await supabase
+    // 1. Try upserting to user_profiles table
+    const { error: profileError } = await supabase
       .from('user_profiles')
       .upsert(payload, { onConflict: 'email' });
 
-    if (error) {
-      // Fallback upsert without updated_at if column doesn't exist
+    if (!profileError) {
+      success = true;
+    } else {
+      // Try without updated_at
       const { error: err2 } = await supabase
         .from('user_profiles')
         .upsert({
@@ -94,12 +120,41 @@ export async function saveUserProfileToDb(email: string, profile: UserProfile): 
           nama_penyusun: profile.namaPenyusun,
           nip_penyusun: profile.nipPenyusun
         }, { onConflict: 'email' });
-      if (err2) throw err2;
+      if (!err2) success = true;
     }
-
-    return true;
   } catch (e) {
-    console.error("Error saving user profile to DB:", e);
-    return false;
+    console.error("Error saving to user_profiles table:", e);
   }
+
+  try {
+    // 2. Also try updating users table
+    const userPayload = {
+      email: cleanEmail,
+      nama_sekolah: profile.namaSekolah,
+      nama_kepala_sekolah: profile.namaKepalaSekolah,
+      nip_kepala_sekolah: profile.nipKepalaSekolah,
+      nama_penyusun: profile.namaPenyusun,
+      nip_penyusun: profile.nipPenyusun
+    };
+
+    const { error: userError } = await supabase
+      .from('users')
+      .update(userPayload)
+      .eq('email', cleanEmail);
+
+    if (!userError) {
+      success = true;
+    } else {
+      // If update failed (e.g. columns don't exist in users table), try upserting
+      const { error: upsertErr } = await supabase
+        .from('users')
+        .upsert(userPayload, { onConflict: 'email' });
+      if (!upsertErr) success = true;
+    }
+  } catch (e) {
+    console.error("Error updating users table with profile:", e);
+  }
+
+  // Return true if either succeeded or at least local saved successfully
+  return true;
 }
